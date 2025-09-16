@@ -1,1 +1,409 @@
+---
+title: "Proteomics Exploratory Data Analysis: Chromatin vs Soluble Fractions"
+author: "Swanitha"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+    fig_width: 8
+    fig_height: 6
+    theme: flatly
+  pdf_document:
+    toc: true
+    fig_width: 8
+    fig_height: 6
+---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center",
+  cache = FALSE
+)
+```
+
+# Abstract
+
+This report presents an exploratory data analysis of proteomics data comparing chromatin-bound and soluble protein fractions. The dataset contains 9,387 proteins across 8 samples (4 chromatin, 4 soluble), with an overall missing data rate of 7.55%. Principal Component Analysis reveals clear separation between chromatin and soluble fractions, with PC1 explaining 97.0% of the variance. After quality control filtering and quantile normalization, 8,378 proteins were retained for downstream analysis. The data shows expected biological patterns with distinct protein profiles between cellular compartments.
+
+# Keywords
+
+* Proteomics
+* Exploratory Data Analysis
+* Missing Data Analysis
+* Principal Component Analysis
+* Data Normalization
+* Chromatin Proteins
+* Cellular Fractionation
+
+# Introduction
+
+Subcellular fractionation followed by mass spectrometry-based proteomics is a powerful approach to understand protein localization and function. This analysis examines protein abundance differences between chromatin-bound and soluble cellular fractions, providing insights into compartment-specific protein enrichment patterns.
+
+The dataset consists of DIA-NN quantified protein intensities from 8 samples across two experimental conditions:
+- **Chromatin fraction** (Chrom_01 to Chrom_04): Proteins associated with chromatin
+- **Soluble fraction** (Sol_01 to Sol_04): Cytoplasmic and nuclear soluble proteins
+
+# Methods
+
+## Data Processing Pipeline
+
+1. **Data Import**: Protein intensity matrix from DIA-NN output
+2. **Quality Assessment**: Missing data analysis and sample completeness evaluation
+3. **Filtering**: Removal of proteins with excessive missing values (≥3 missing values)
+4. **Imputation**: Minimum value imputation for remaining missing data
+5. **Normalization**: Log10 transformation followed by quantile normalization
+6. **Dimensionality Reduction**: Principal Component Analysis using PPCA method
+
+## Statistical Analysis
+
+All analyses were performed in R version 4.5.1. Key packages used include:
+- `limma` for between-array normalization
+- `pcaMethods` for PCA with missing value handling
+
+```{r libraries, message=FALSE}
+# Load required libraries
+library(limma)
+library(pcaMethods)
+```
+
+# Results
+
+## Data Overview
+
+```{r data_loading}
+# Load the data
+x <- read.table("projects/proteomics/workingdir02/dia-quant-output/report.pg_matrix.tsv", 
+                header=TRUE, sep="\t")
+
+# Clean column names
+colnames(x) <- gsub("X.home.projects.proteomics.PXD058340.20240911_AST0_NEO4_IAH_collab_SAG_U2OS_Frac_Control_","", colnames(x))
+colnames(x) <- gsub("_uncalibrated.mzML", "", colnames(x))
+
+# Set row names
+rownames(x) <- paste(x$Protein.Ids, x$Genes, sep = "_")
+
+# Extract intensity data
+y <- x[, 6:13]
+
+# Order columns alphabetically
+y <- y[, order(colnames(y))]
+
+# Display data dimensions
+cat("Dataset dimensions:", nrow(y), "proteins ×", ncol(y), "samples\n")
+```
+
+```{r data_preview}
+# Display first few rows
+knitr::kable(head(y), 
+             caption = "Table 1: First 6 rows of protein intensity data",
+             digits = 1)
+```
+
+## Missing Data Analysis
+
+```{r missing_data_analysis}
+# Overall missing data statistics
+total_values <- nrow(y) * ncol(y)
+total_missing <- sum(is.na(y))
+missing_percentage <- (total_missing / total_values) * 100
+
+cat("**Overall Missing Data Summary**\n")
+cat("- Total values:", format(total_values, big.mark = ","), "\n")
+cat("- Total missing:", format(total_missing, big.mark = ","), "\n")
+cat("- Overall missing percentage:", round(missing_percentage, 2), "%\n\n")
+
+# Missing data per sample
+missing_per_sample <- colSums(is.na(y))
+missing_per_sample_pct <- (missing_per_sample / nrow(y)) * 100
+
+missing_summary <- data.frame(
+  Sample = names(missing_per_sample),
+  Missing_Count = missing_per_sample,
+  Missing_Percent = round(missing_per_sample_pct, 2)
+)
+
+knitr::kable(missing_summary, 
+             caption = "Table 2: Missing data summary per sample")
+```
+
+```{r missing_patterns}
+# Missing data per protein
+nas <- apply(X = y, MARGIN = 1, function(x){ 
+  length(which(is.na(x))) 
+})
+missing_proteins_table <- table(nas)
+
+cat("**Protein-level Missing Data Distribution**\n")
+knitr::kable(as.data.frame(missing_proteins_table), 
+             col.names = c("Missing Values", "Protein Count"),
+             caption = "Table 3: Distribution of missing values across proteins")
+```
+
+The missing data analysis reveals a **7.55% overall missing rate**, which is within acceptable limits for proteomics data. Missing values are relatively evenly distributed across samples (6.64-8.96%), suggesting missing completely at random (MCAR) pattern rather than systematic bias.
+
+## Raw Data Distribution
+
+```{r raw_statistics}
+# Basic statistics for each sample
+raw_stats <- data.frame(
+  Sample = colnames(y),
+  Min = apply(y, 2, min, na.rm = TRUE),
+  Q1 = apply(y, 2, quantile, 0.25, na.rm = TRUE),
+  Median = apply(y, 2, median, na.rm = TRUE),
+  Mean = apply(y, 2, mean, na.rm = TRUE),
+  Q3 = apply(y, 2, quantile, 0.75, na.rm = TRUE),
+  Max = apply(y, 2, max, na.rm = TRUE),
+  SD = apply(y, 2, sd, na.rm = TRUE)
+)
+
+# Round numeric columns
+raw_stats[, 2:8] <- round(raw_stats[, 2:8], 0)
+
+knitr::kable(raw_stats, 
+             caption = "Table 4: Raw data statistics per sample",
+             format.args = list(big.mark = ","))
+```
+
+```{r abundance_distribution, fig.cap="Figure 1: Raw abundance distribution across samples"}
+# Visualization of raw distribution
+par(mfrow = c(1, 2), mar = c(8, 4, 3, 1))
+
+# Raw scale boxplot
+boxplot(y, las = 2, main = "Raw Abundance Distribution", 
+        ylab = "Abundance", cex.axis = 0.7, col = rainbow(ncol(y)))
+
+# Log-transformed boxplot
+y_log <- log10(y + 1)
+boxplot(y_log, las = 2, main = "Log10(Abundance + 1) Distribution", 
+        ylab = "Log10(Abundance + 1)", cex.axis = 0.7, col = rainbow(ncol(y)))
+
+par(mfrow = c(1, 1))
+```
+
+The raw data shows typical proteomics characteristics with **wide dynamic range** spanning several orders of magnitude. Chromatin samples display higher maximum values and greater variance compared to soluble fractions, suggesting enrichment of highly abundant chromatin-associated proteins.
+
+## Protein Abundance Analysis
+
+```{r protein_abundance}
+# Calculate protein statistics
+protein_stats <- data.frame(
+  Protein = rownames(y),
+  Mean_Abundance = rowMeans(y, na.rm = TRUE),
+  Median_Abundance = apply(y, 1, median, na.rm = TRUE),
+  SD_Abundance = apply(y, 1, sd, na.rm = TRUE),
+  CV = apply(y, 1, sd, na.rm = TRUE) / rowMeans(y, na.rm = TRUE),
+  Missing_Count = nas
+)
+
+# Top 10 most abundant proteins
+high_abundance <- head(protein_stats[order(protein_stats$Mean_Abundance, decreasing = TRUE), ], 10)
+
+knitr::kable(high_abundance[, c("Protein", "Mean_Abundance", "Missing_Count")], 
+             caption = "Table 5: Top 10 most abundant proteins",
+             col.names = c("Protein", "Mean Abundance", "Missing Values"),
+             digits = 0,
+             format.args = list(big.mark = ","))
+```
+
+```{r cv_distribution, fig.cap="Figure 2: Distribution of protein coefficient of variation"}
+# Visualization of CV distribution
+hist(protein_stats$CV[!is.infinite(protein_stats$CV)], 
+     breaks = 50, main = "Distribution of Coefficient of Variation", 
+     xlab = "CV", ylab = "Frequency", 
+     col = "lightblue", border = "darkblue")
+```
+
+The most abundant proteins include **core histones** (H2AZ1, H2BC1, H4C1, H3C1, H1-2) and **cytoskeletal proteins** (ACTG1, VIM), which are expected to be highly abundant in cellular fractions. The coefficient of variation analysis helps identify proteins with high biological variability.
+
+## Sample Correlation Analysis
+
+```{r correlation_analysis}
+# Calculate correlation matrix
+cor_matrix <- cor(y, use = "complete.obs")
+
+knitr::kable(round(cor_matrix, 3), 
+             caption = "Table 6: Sample correlation matrix")
+
+# Calculate group-wise correlations
+chrom_samples <- grepl("Chrom", colnames(y))
+sol_samples <- grepl("Sol", colnames(y))
+
+chrom_cor <- cor_matrix[chrom_samples, chrom_samples]
+sol_cor <- cor_matrix[sol_samples, sol_samples]
+between_cor <- cor_matrix[chrom_samples, sol_samples]
+
+cat("\n**Correlation Summary:**\n")
+cat("- Average within-Chromatin correlation:", round(mean(chrom_cor[upper.tri(chrom_cor)]), 3), "\n")
+cat("- Average within-Soluble correlation:", round(mean(sol_cor[upper.tri(sol_cor)]), 3), "\n")
+cat("- Average between-condition correlation:", round(mean(between_cor), 3), "\n")
+```
+
+```{r correlation_heatmap, fig.cap="Figure 3: Sample correlation heatmap"}
+# Correlation heatmap
+heatmap(cor_matrix, main = "Sample Correlation Heatmap", 
+        col = heat.colors(100), margins = c(8, 8))
+```
+
+The correlation analysis reveals **strong within-group correlations** (>0.98) and **moderate between-group correlations** (~0.32), indicating clear biological differences between chromatin and soluble fractions while maintaining good technical reproducibility.
+
+## Data Normalization
+
+```{r data_filtering}
+# Filter proteins with fewer missing values
+z <- y[which(nas < 3), ]
+
+cat("**Data Quality Filtering:**\n")
+cat("- Original proteins:", nrow(y), "\n")
+cat("- After filtering (< 3 missing values):", nrow(z), "\n")
+cat("- Retention rate:", round(nrow(z)/nrow(y) * 100, 1), "%\n")
+```
+
+```{r normalization_pipeline}
+# Handle remaining missing values
+z_complete <- z
+for(i in 1:ncol(z_complete)) {
+  if(any(is.na(z_complete[,i]))) {
+    min_val <- min(z_complete[,i], na.rm = TRUE)
+    z_complete[is.na(z_complete[,i]), i] <- min_val * 0.1
+  }
+}
+
+# Log10 transformation
+z_log10 <- log10(z_complete + 1)
+
+# Between-array normalization
+z_normalized <- normalizeBetweenArrays(z_log10, method = "quantile")
+
+cat("**Normalization Pipeline:**\n")
+cat("- Missing values after imputation:", sum(is.na(z_complete)), "\n")
+cat("- Final normalized data dimensions:", nrow(z_normalized), "×", ncol(z_normalized), "\n")
+```
+
+```{r normalization_validation}
+# Normalization validation
+raw_medians <- apply(z_complete, 2, median)
+norm_medians <- apply(z_normalized, 2, median)
+
+cat("**Normalization Validation:**\n")
+cat("- CV of sample medians (raw):", round(sd(raw_medians)/mean(raw_medians), 3), "\n")
+cat("- CV of sample medians (normalized):", round(sd(norm_medians)/mean(norm_medians), 3), "\n")
+
+# Correlation preservation
+cor_norm <- cor(z_normalized)
+chrom_idx <- grepl("Chrom", colnames(z_normalized))
+sol_idx <- grepl("Sol", colnames(z_normalized))
+
+cat("- Within-Chromatin correlation (normalized):", 
+    round(mean(cor_norm[chrom_idx, chrom_idx][upper.tri(cor_norm[chrom_idx, chrom_idx])]), 3), "\n")
+cat("- Within-Soluble correlation (normalized):", 
+    round(mean(cor_norm[sol_idx, sol_idx][upper.tri(cor_norm[sol_idx, sol_idx])]), 3), "\n")
+```
+
+```{r normalization_comparison, fig.cap="Figure 4: Normalization pipeline comparison"}
+# Visualization comparison
+par(mfrow = c(2, 2), mar = c(8, 4, 3, 1))
+
+# Raw data
+boxplot(log10(z_complete + 1), las = 2, main = "Raw Data (Log10 scale)", 
+        cex.axis = 0.6, col = rainbow(ncol(z_complete)))
+
+# Log10 transformed
+boxplot(z_log10, las = 2, main = "Log10 Transformed", 
+        cex.axis = 0.6, col = rainbow(ncol(z_log10)))
+
+# Final normalized
+boxplot(z_normalized, las = 2, main = "Quantile Normalized", 
+        cex.axis = 0.6, col = rainbow(ncol(z_normalized)))
+
+# Add empty plot for symmetry
+plot.new()
+
+par(mfrow = c(1, 1))
+```
+
+The normalization pipeline successfully **standardized sample medians** (CV reduced to 0) while **preserving biological correlations** between sample groups, indicating effective technical variation removal without loss of biological signal.
+
+## Principal Component Analysis
+
+```{r pca_analysis}
+# PCA using pcaMethods (handles missing values)
+z_t <- t(z)  # Transpose so samples are rows
+pc <- pca(z_t, nPcs = 3, method = "ppca")
+
+cat("**PCA Results Summary:**\n")
+cat("- Method used:", pc@method, "\n")
+cat("- Components calculated:", pc@nPcs, "\n")
+cat("- Variance explained by PC1:", round(pc@R2[1] * 100, 1), "%\n")
+cat("- Variance explained by PC2:", round(pc@R2[2] * 100, 1), "%\n")
+cat("- Cumulative variance (PC1-PC2):", round(pc@R2cum[2] * 100, 1), "%\n")
+```
+
+```{r pca_visualization, fig.cap="Figure 5: PCA analysis of proteomics data"}
+# PCA scores plot
+scores <- pc@scores
+chrom_color <- ifelse(grepl("Chrom", rownames(scores)), "red", "blue")
+
+par(mfrow = c(1, 2), mar = c(5, 4, 3, 1))
+
+# Automatic scores plot
+slplot(pc, main = "PCA Scores Plot", cex = 0.8)
+
+# Manual scores plot with group colors
+plot(scores[,1], scores[,2], col = chrom_color, pch = 19, cex = 1.5,
+     main = "PCA: Chromatin vs Soluble",
+     xlab = paste0("PC1 (", round(pc@R2[1]*100, 1), "% variance)"),
+     ylab = paste0("PC2 (", round(pc@R2[2]*100, 1), "% variance)"))
+
+# Add sample labels
+text(scores[,1], scores[,2], labels = rownames(scores), pos = 3, cex = 0.7)
+
+# Add legend
+legend("topright", legend = c("Chromatin", "Soluble"), 
+       col = c("red", "blue"), pch = 19, cex = 0.8)
+
+par(mfrow = c(1, 1))
+```
+
+PCA reveals **clear separation** between chromatin and soluble fractions along PC1, which explains **97.0% of total variance**. This strong separation indicates distinct protein profiles between cellular compartments, validating the experimental fractionation procedure.
+
+# Discussion
+
+## Key Findings
+
+1. **Data Quality**: The dataset shows good overall quality with moderate missing data (7.55%) and high technical reproducibility within sample groups.
+
+2. **Biological Separation**: Clear distinction between chromatin-bound and soluble protein fractions, as evidenced by PCA analysis showing 97% variance explained by the first component.
+
+3. **Expected Protein Patterns**: Top abundant proteins include core histones and structural proteins, consistent with successful chromatin fractionation.
+
+4. **Technical Reproducibility**: High within-group correlations (>0.98) demonstrate good experimental consistency.
+
+## Methodological Considerations
+
+- **Missing Data Handling**: The PPCA method effectively handles missing values while preserving biological signal structure.
+- **Normalization Strategy**: Quantile normalization successfully removed technical variation while maintaining biological differences.
+- **Quality Control**: Filtering proteins with excessive missing values (≥3) retained 89.3% of proteins for analysis.
+
+## Limitations
+
+- The analysis is descriptive and does not include statistical testing for differential abundance.
+- Missing value imputation using minimum values may introduce bias for low-abundance proteins.
+- Batch effects were not explicitly assessed due to single-batch design.
+
+# Conclusions
+
+This exploratory analysis demonstrates successful proteomics profiling of chromatin-bound versus soluble protein fractions. The data shows excellent technical quality and clear biological separation between cellular compartments. The normalized dataset is suitable for downstream differential expression analysis and functional enrichment studies.
+
+The analysis pipeline provides a reproducible framework for similar proteomics datasets, incorporating best practices for missing data handling, normalization, and quality assessment.
+
+# Session Information
+
+```{r session}
+save.image("Exploratory Data Analysis.Rdata")
+sessionInfo()
+```
