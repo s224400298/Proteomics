@@ -112,11 +112,6 @@ total_values <- nrow(y) * ncol(y)
 total_missing <- sum(is.na(y))
 missing_percentage <- (total_missing / total_values) * 100
 
-cat("**Overall Missing Data Summary**\n")
-cat("- Total values:", format(total_values, big.mark = ","), "\n")
-cat("- Total missing:", format(total_missing, big.mark = ","), "\n")
-cat("- Overall missing percentage:", round(missing_percentage, 2), "%\n\n")
-
 # Missing data per sample
 missing_per_sample <- colSums(is.na(y))
 missing_per_sample_pct <- (missing_per_sample / nrow(y)) * 100
@@ -138,7 +133,6 @@ nas <- apply(X = y, MARGIN = 1, function(x){
 })
 missing_proteins_table <- table(nas)
 
-cat("**Protein-level Missing Data Distribution**\n")
 knitr::kable(as.data.frame(missing_proteins_table), 
              col.names = c("Missing Values", "Protein Count"),
              caption = "Table 3: Distribution of missing values across proteins")
@@ -227,7 +221,7 @@ The most abundant proteins include **core histones** (H2AZ1, H2BC1, H4C1, H3C1, 
 cor_matrix <- cor(y, use = "complete.obs")
 
 knitr::kable(round(cor_matrix, 3), 
-             caption = "Table 6: Sample correlation matrix")
+             caption = ("Table 6: Sample correlation matrix")
 
 # Calculate group-wise correlations
 chrom_samples <- grepl("Chrom", colnames(y))
@@ -236,11 +230,6 @@ sol_samples <- grepl("Sol", colnames(y))
 chrom_cor <- cor_matrix[chrom_samples, chrom_samples]
 sol_cor <- cor_matrix[sol_samples, sol_samples]
 between_cor <- cor_matrix[chrom_samples, sol_samples]
-
-cat("\n**Correlation Summary:**\n")
-cat("- Average within-Chromatin correlation:", round(mean(chrom_cor[upper.tri(chrom_cor)]), 3), "\n")
-cat("- Average within-Soluble correlation:", round(mean(sol_cor[upper.tri(sol_cor)]), 3), "\n")
-cat("- Average between-condition correlation:", round(mean(between_cor), 3), "\n")
 ```
 
 ```{r correlation_heatmap, fig.cap="Figure 3: Sample correlation heatmap"}
@@ -256,11 +245,6 @@ The correlation analysis reveals **strong within-group correlations** (>0.98) an
 ```{r data_filtering}
 # Filter proteins with fewer missing values
 z <- y[which(nas < 3), ]
-
-cat("**Data Quality Filtering:**\n")
-cat("- Original proteins:", nrow(y), "\n")
-cat("- After filtering (< 3 missing values):", nrow(z), "\n")
-cat("- Retention rate:", round(nrow(z)/nrow(y) * 100, 1), "%\n")
 ```
 
 ```{r normalization_pipeline}
@@ -278,10 +262,6 @@ z_log10 <- log10(z_complete + 1)
 
 # Between-array normalization
 z_normalized <- normalizeBetweenArrays(z_log10, method = "quantile")
-
-cat("**Normalization Pipeline:**\n")
-cat("- Missing values after imputation:", sum(is.na(z_complete)), "\n")
-cat("- Final normalized data dimensions:", nrow(z_normalized), "×", ncol(z_normalized), "\n")
 ```
 
 ```{r normalization_validation}
@@ -289,19 +269,10 @@ cat("- Final normalized data dimensions:", nrow(z_normalized), "×", ncol(z_norm
 raw_medians <- apply(z_complete, 2, median)
 norm_medians <- apply(z_normalized, 2, median)
 
-cat("**Normalization Validation:**\n")
-cat("- CV of sample medians (raw):", round(sd(raw_medians)/mean(raw_medians), 3), "\n")
-cat("- CV of sample medians (normalized):", round(sd(norm_medians)/mean(norm_medians), 3), "\n")
-
 # Correlation preservation
 cor_norm <- cor(z_normalized)
 chrom_idx <- grepl("Chrom", colnames(z_normalized))
 sol_idx <- grepl("Sol", colnames(z_normalized))
-
-cat("- Within-Chromatin correlation (normalized):", 
-    round(mean(cor_norm[chrom_idx, chrom_idx][upper.tri(cor_norm[chrom_idx, chrom_idx])]), 3), "\n")
-cat("- Within-Soluble correlation (normalized):", 
-    round(mean(cor_norm[sol_idx, sol_idx][upper.tri(cor_norm[sol_idx, sol_idx])]), 3), "\n")
 ```
 
 ```{r normalization_comparison, fig.cap="Figure 4: Normalization pipeline comparison"}
@@ -334,13 +305,6 @@ The normalization pipeline successfully **standardized sample medians** (CV redu
 # PCA using pcaMethods (handles missing values)
 z_t <- t(z)  # Transpose so samples are rows
 pc <- pca(z_t, nPcs = 3, method = "ppca")
-
-cat("**PCA Results Summary:**\n")
-cat("- Method used:", pc@method, "\n")
-cat("- Components calculated:", pc@nPcs, "\n")
-cat("- Variance explained by PC1:", round(pc@R2[1] * 100, 1), "%\n")
-cat("- Variance explained by PC2:", round(pc@R2[2] * 100, 1), "%\n")
-cat("- Cumulative variance (PC1-PC2):", round(pc@R2cum[2] * 100, 1), "%\n")
 ```
 
 ```{r pca_visualization, fig.cap="Figure 5: PCA analysis of proteomics data"}
