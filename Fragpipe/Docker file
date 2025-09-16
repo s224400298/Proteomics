@@ -1,1 +1,114 @@
+# FragPipe Docker Usage Guide
 
+## Docker Image Versions
+
+ **mziemann/fragpipe_mod1**: Initial version with MSFragger
+ **mziemann/fragpipe_mod2**: Updated version with Python compatibility fixes
+
+## Tool Dependencies Inside Container
+
+    /fragpipe_bin/dependencies/MSFragger-4.3/MSFragger-4.3.jar
+    /fragpipe_bin/dependencies/IonQuant-1.11.11/IonQuant-1.11.11.jar
+    /fragpipe_bin/dependencies/diaTracer-1.3.3/diaTracer-1.3.3.jar
+
+## Step-by-Step Workflow
+
+### 1. Build Docker Image
+
+    docker build -t mziemann/fragpipe_mod2 .
+
+### 2. Start Docker Container
+
+    docker run -it --rm -v $HOME:/home mziemann/fragpipe_mod2 bash
+
+### 3. Download Human Proteome Database
+
+Download from UniProt:
+
+    wget https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/reference_proteomes/Eukaryota/UP000005640/UP000005640_9606.fasta.gz
+
+### 4. Unzip Database File
+
+    gunzip UP000005640_9606.fasta.gz
+
+### 5. Create DECOY Database
+
+Create R script for decoy generation:
+
+    nano decoys.R
+
+### 6. Set File Permissions
+
+    chmod 644 UP000005640_9606.fasta UP000005640_9606_withDECOYS.fasta UP000005640_9606_DECOYS.fasta
+
+### 7. Replace DECOY Prefix
+
+Replace DECOY_ with rev_ (FragPipe convention):
+
+    sed -i 's/>DECOY_/>rev_/' UP000005640_9606_withDECOYS.fasta
+
+### 8. Verify Replacement
+
+    sed 's/>DECOY_/>rev_/' UP000005640_9606_withDECOYS.fasta | head -100
+
+### 9. Navigate to FragPipe Directory
+
+    cd fragpipe-23.1/fragpipe-23.1/bin/
+
+### 10. Execute FragPipe Analysis
+
+    ./fragpipe --headless --workflow /home/projects/proteomics/sampletest.workflow \
+        --manifest /home/projects/proteomics/sampletest.manifest.fp-manifest \
+        --workdir /home/projects/proteomics/workingdir01 \
+        --config-tools-folder /fragpipe_bin/dependencies/
+
+## Common Issues and Solutions
+
+### FASTA File Error
+
+**Error Message:**
+```
+2025-08-06 02:17:06,081 ERROR - FASTA file path is empty or the file is corrupted
+```
+
+**Solution:** Download and prepare UniProt human proteome database (steps 3-8)
+
+### SciPy Import Error
+
+**Error Message:**
+```
+ImportError: cannot import name '_lazywhere' from 'scipy._lib._util'
+```
+
+**Cause:** SciPy removed lazywhere from its database
+
+**Solution:** mziemann/fragpipe_mod2 with Python 1.15 version compatible with SciPy
+
+### Zero Protein Intensities
+
+**Issue:** Protein intensities were zero in `protein.tsv` file
+
+**Solution:** Check `report.pg.matrix` in DIA output files for actual quantified protein intensities
+
+## Output Files
+
+After successful analysis:
+
+- `protein.tsv` - Protein identification results (may show zero intensities)
+- `report.pg.matrix` - **Actual quantified protein intensities** (DIA analysis)
+- Additional analysis files in working directory
+
+## Required Input Files
+
+Ensure these files exist in `/home/projects/proteomics/`:
+
+- `sampletest.workflow` - FragPipe workflow configuration
+- `sampletest.manifest.fp-manifest` - Sample manifest file
+- `workingdir01/` - Output directory
+- Prepared FASTA database with decoys
+
+## Notes
+
+- **mziemann/fragpipe_mod2** has the latest compatibility fixes
+- Monitor output directory for large files
+- Verify all input files are properly configured before running analysis
