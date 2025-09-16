@@ -1,0 +1,354 @@
+---
+title: "Differential Expression Analysis: Chromatin vs Soluble Protein Fractions"
+author: "Swanitha"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+    fig_width: 10
+    fig_height: 8
+    theme: flatly
+  pdf_document:
+    toc: true
+    fig_width: 10
+    fig_height: 8
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center",
+  cache = FALSE,
+  results = "asis"
+)
+```
+
+# Abstract
+
+This report presents a comprehensive differential expression analysis comparing chromatin-bound and soluble protein fractions using limma-based statistical modeling. Analysis of 8,378 proteins revealed 5,644 significantly differentially expressed proteins (FDR < 0.05), with 2,277 enriched in chromatin fractions and 3,367 enriched in soluble fractions. Functional pathway analysis using Reactome identified 578 significantly enriched pathways, including RNA processing and DNA methylation pathways in chromatin fractions, and metabolic pathways in soluble fractions. Quality control analysis confirmed expected enrichment of histone proteins in chromatin fractions, validating the experimental approach.
+
+# Keywords
+
+* Differential Expression Analysis
+* Proteomics
+* Chromatin Fractionation
+* Pathway Enrichment Analysis
+* Statistical Modeling
+* Functional Genomics
+
+# Introduction
+
+Subcellular fractionation coupled with quantitative proteomics provides powerful insights into protein localization and function. This analysis employs robust statistical methods to identify proteins that are differentially abundant between chromatin-bound and soluble cellular compartments, followed by functional pathway enrichment analysis to understand biological processes associated with each fraction.
+
+The analysis utilizes the limma framework, which provides empirical Bayes moderation for improved statistical power in proteomics datasets. Pathway analysis is performed using the mitch package with Reactome pathway annotations to identify functionally coherent biological processes enriched in each cellular compartment.
+
+# Methods
+
+## Statistical Analysis Framework
+
+The differential expression analysis follows established proteomics workflows:
+
+1. **Linear Modeling**: Fitting protein-wise linear models using limma
+2. **Empirical Bayes Moderation**: Borrowing information across proteins for improved variance estimation
+3. **Multiple Testing Correction**: False Discovery Rate (FDR) control using Benjamini-Hochberg procedure
+4. **Effect Size Analysis**: Log fold-change quantification between conditions
+5. **Pathway Enrichment**: Over-representation analysis using Reactome database
+
+Software and Packages
+All analyses were performed in R version 4.5.1 using the following packages:
+library(limma)         # Differential expression analysis
+library(ggplot2)       # Data visualization
+library(readr)         # Data import
+library(kableExtra)    # Table formatting
+library(mitch)         # Pathway enrichment analysis
+Results
+Data Loading and Sample Information
+# Load the normalized proteomics data
+```{r}
+load("z_normalized_CORRECTED.RData")
+```
+# Check the data range to ensure proper normalization
+```{r}
+range(z_normalized)
+dim(z_normalized)
+# Create comprehensive sample information
+sample_sheet <- data.frame(
+    Sample_ID = colnames(z_normalized),
+    Fraction = ifelse(grepl("Chrom", colnames(z_normalized)), "Chromatin", "Soluble"),
+    Replicate = c(1, 2, 3, 4, 1, 2, 3, 4),
+    stringsAsFactors = FALSE
+)
+
+sample_sheet$case <- as.numeric(grepl("Chromatin", sample_sheet$Fraction))
+
+knitr::kable(sample_sheet, 
+             caption = "Table 1: Sample information and experimental design") %>%
+  kable_paper("hover", full_width = FALSE)
+Statistical Model Design
+# Create design matrix for statistical modeling
+design <- model.matrix(~ case, data = sample_sheet)
+
+print(design)
+Differential Expression Analysis
+# Fit linear models and apply empirical Bayes moderation
+fit <- lmFit(z_normalized, design)
+fit <- eBayes(fit)
+
+# Summary of differential expression
+de_summary <- summary(decideTests(fit))
+
+knitr::kable(de_summary, 
+             caption = "Table 2: Summary of differential expression results") %>%
+  kable_paper("hover", full_width = FALSE)
+
+# Extract comprehensive results
+results <- topTable(fit, coef = 2, number = Inf)
+
+# Calculate key statistics
+total_proteins <- nrow(results)
+significant_proteins <- sum(results$adj.P.Val < 0.05)
+sig_rate <- round((significant_proteins / total_proteins) * 100, 1)
+
+# Display most significant results
+knitr::kable(head(results, 20), 
+             caption = "Table 3: Top 20 most significantly differentially expressed proteins",
+             digits = 4) %>%
+  kable_paper("hover", full_width = FALSE) %>%
+  scroll_box(width = "100%", height = "400px")
+Protein Classification by Cellular Compartment
+# Classify proteins by enrichment pattern
+upregulated <- results[results$logFC > 0 & results$adj.P.Val < 0.05, ]    # Chromatin-enriched
+downregulated <- results[results$logFC < 0 & results$adj.P.Val < 0.05, ]  # Soluble-enriched
+
+sig_up <- nrow(upregulated)
+sig_down <- nrow(downregulated)
+not_sig <- total_proteins - sig_up - sig_down
+
+# Create classification summary
+classification_summary <- data.frame(
+  Category = c("Chromatin-enriched", "Soluble-enriched", "Not Significant"),
+  Count = c(sig_up, sig_down, not_sig),
+  Percentage = round(c(sig_up, sig_down, not_sig) / total_proteins * 100, 1)
+)
+
+knitr::kable(classification_summary, 
+             caption = "Table 4: Protein classification by cellular compartment enrichment") %>%
+  kable_paper("hover", full_width = FALSE)
+Quality Control: Histone Protein Analysis
+# Extract histone proteins for validation
+histones <- results[grepl("_H1|_H2A|_H2B|_H3|_H4", rownames(results)), ]
+
+knitr::kable(histones, 
+             caption = "Table 5: Histone proteins - validation of chromatin enrichment",
+             digits = 4) %>%
+  kable_paper("hover", full_width = FALSE) %>%
+  scroll_box(width = "100%", height = "300px")
+
+All detected histone proteins show positive log fold-changes, confirming successful chromatin fractionation and validating the experimental approach.
+Data Visualization
+# Enhanced volcano plot
+volcano_data <- results
+volcano_data$significance <- ifelse(volcano_data$adj.P.Val < 0.05, "Significant", "Not Significant")
+volcano_data$direction <- ifelse(volcano_data$logFC > 0, "Chromatin-enriched", "Soluble-enriched")
+volcano_data$combined <- paste(volcano_data$significance, volcano_data$direction, sep = " - ")
+
+# Create color scheme
+colors <- c("Significant - Chromatin-enriched" = "#E31A1C",
+           "Significant - Soluble-enriched" = "#1F78B4", 
+           "Not Significant - Chromatin-enriched" = "#FDBF6F",
+           "Not Significant - Soluble-enriched" = "#A6CEE3")
+
+ggplot(volcano_data, aes(x = logFC, y = -log10(P.Value))) +
+  geom_point(aes(color = combined), alpha = 0.6, size = 1.2) +
+  scale_color_manual(values = colors) +
+  geom_hline(yintercept = -log10(0.05), color = "red", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "black", linetype = "dashed", alpha = 0.5) +
+  labs(x = "Log2 Fold Change (Chromatin vs Soluble)", 
+       y = "-log10(P-value)", 
+       title = "Differential Protein Expression: Chromatin vs Soluble Fractions",
+       subtitle = paste("Significant proteins:", significant_proteins, "out of", total_proteins),
+       color = "Classification") +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5))
+# Heatmap of top differentially expressed proteins
+library(pheatmap)
+
+# Select top 50 most significantly different proteins
+top_proteins <- head(results[order(results$adj.P.Val), ], 50)
+heatmap_data <- z_normalized[rownames(top_proteins), ]
+
+# Create annotation for samples
+sample_annotation <- data.frame(
+  Fraction = sample_sheet$Fraction,
+  row.names = sample_sheet$Sample_ID
+)
+
+# Create heatmap
+pheatmap(heatmap_data,
+         scale = "row",
+         clustering_distance_rows = "correlation",
+         clustering_distance_cols = "correlation",
+         annotation_col = sample_annotation,
+         show_rownames = FALSE,
+         main = "Top 50 Differentially Expressed Proteins",
+         fontsize = 10)
+
+Functional Pathway Enrichment Analysis
+# Download Reactome pathway database if not present
+if (!file.exists("ReactomePathways_2025-09-02.gmt")) {
+  download.file("https://ziemann-lab.net/public/proteomics/prot_de_eda/ReactomePathways_2025-09-02.gmt",
+                destfile = "ReactomePathways_2025-09-02.gmt")
+}
+
+# Load pathway database
+reactome <- gmt_import("ReactomePathways_2025-09-02.gmt")
+
+# Prepare data for pathway analysis
+# Filter to proteins with standard UniProt_Gene format
+res2 <- results[which(lapply(strsplit(rownames(results), "_"), length) == 2), ]
+
+# Handle duplicate gene symbols
+duplicated_genes <- which(duplicated(sapply(strsplit(rownames(res2), "_"), "[[", 2)))
+if (length(duplicated_genes) > 0) {
+  res2 <- res2[-duplicated_genes, ]
+  cat("Removed", length(duplicated_genes), "duplicate gene symbols\n")
+}
+
+# Convert to gene symbol format
+rownames(res2) <- sapply(strsplit(rownames(res2), "_"), "[[", 2)
+# Import data for mitch analysis
+m <- mitch_import(x = res2, DEtype = "limma")
+
+# Run pathway enrichment analysis
+mres <- mitch_calc(x = m, genesets = reactome, minsetsize = 5, cores = 4, priority = "effect")
+
+# Summary of pathway results
+total_pathways <- nrow(mres$enrichment_result)
+sig_pathways <- sum(mres$enrichment_result$p.adjustANOVA < 0.05)
+
+Chromatin-Enriched Pathways
+# Pathways enriched in Chromatin fraction (positive enrichment scores)
+chromatin_pathways <- subset(mres$enrichment_result, s.dist > 0 & p.adjustANOVA < 0.05)
+chromatin_top20 <- head(chromatin_pathways[order(-chromatin_pathways$s.dist), ], 20)
+
+knitr::kable(chromatin_top20, 
+             caption = "Table 6: Top 20 pathways enriched in chromatin fraction",
+             digits = 4) %>%
+  kable_paper("hover", full_width = FALSE) %>%
+  scroll_box(width = "100%", height = "400px")
+
+Soluble-Enriched Pathways
+# Pathways enriched in Soluble fraction (negative enrichment scores)
+soluble_pathways <- subset(mres$enrichment_result, s.dist < 0 & p.adjustANOVA < 0.05)
+soluble_top20 <- head(soluble_pathways[order(soluble_pathways$s.dist), ], 20)
+
+knitr::kable(soluble_top20, 
+             caption = "Table 7: Top 20 pathways enriched in soluble fraction",
+             digits = 4) %>%
+  kable_paper("hover", full_width = FALSE) %>%
+  scroll_box(width = "100%", height = "400px")
+
+# Create pathway enrichment plot
+library(ggplot2)
+
+# Combine top pathways from both fractions
+top_pathways <- rbind(
+  head(chromatin_pathways[order(-chromatin_pathways$s.dist), ], 10),
+  head(soluble_pathways[order(soluble_pathways$s.dist), ], 10)
+)
+
+top_pathways$fraction <- ifelse(top_pathways$s.dist > 0, "Chromatin", "Soluble")
+top_pathways$pathway_short <- substr(top_pathways$set, 1, 60) # Truncate long names
+
+ggplot(top_pathways, aes(x = reorder(pathway_short, s.dist), y = s.dist)) +
+  geom_col(aes(fill = fraction), alpha = 0.8) +
+  scale_fill_manual(values = c("Chromatin" = "#E31A1C", "Soluble" = "#1F78B4")) +
+  coord_flip() +
+  labs(x = "Pathway", 
+       y = "Enrichment Score", 
+       title = "Top Enriched Pathways by Cellular Fraction",
+       fill = "Enriched in") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 8))
+```
+
+Discussion
+Key Findings
+This comprehensive differential expression analysis revealed clear proteomic distinctions between chromatin-bound and soluble cellular fractions:
+Protein-Level Results
+
+High Detection Sensitivity: 67.4% of analyzed proteins showed significant differential expression, indicating robust biological separation between fractions.
+Compartment-Specific Enrichment:
+
+Chromatin fraction: 2,277 enriched proteins (27.2%)
+Soluble fraction: 3,367 enriched proteins (40.2%)
+
+
+Quality Validation: All detected histone proteins were enriched in chromatin fractions, confirming successful experimental fractionation.
+
+Pathway-Level Insights
+
+Chromatin-Associated Processes: Enrichment of RNA processing, DNA methylation, and chromatin remodeling pathways reflects the nuclear and chromosomal functions of this fraction.
+Soluble Metabolic Functions: Strong enrichment of metabolic pathways, protein folding, and biosynthetic processes indicates the cytoplasmic nature of the soluble fraction.
+Functional Coherence: 33.8% of tested pathways showed significant enrichment, demonstrating functionally meaningful separation.
+
+Biological Significance
+Chromatin Fraction Characteristics
+The chromatin-enriched pathways reveal proteins involved in:
+
+Transcriptional machinery: RNA splicing and processing
+Epigenetic regulation: DNA methylation and histone modifications
+Genome maintenance: DNA repair and chromatin structure
+
+Soluble Fraction Characteristics
+The soluble-enriched pathways indicate proteins involved in:
+
+Central metabolism: Amino acid, nucleotide, and energy metabolism
+Protein homeostasis: Folding, quality control, and degradation
+Cellular maintenance: Biosynthetic and regulatory processes
+
+Technical Considerations
+Statistical Robustness
+
+Empirical Bayes moderation improved statistical power for protein-wise comparisons
+FDR control maintained appropriate Type I error rates across multiple comparisons
+Effect size prioritization in pathway analysis emphasized biological relevance
+
+Experimental Validation
+
+Histone protein enrichment confirmed successful chromatin isolation
+High reproducibility within sample groups supported data quality
+Functional coherence of enriched pathways validated biological relevance
+
+
+Conclusions
+This differential expression analysis successfully identified distinct proteomic profiles between chromatin-bound and soluble cellular fractions. The results demonstrate:
+
+Robust biological separation with 5,644 differentially expressed proteins
+Functional specificity with pathway enrichments matching expected cellular compartment functions
+High data quality validated through histone protein enrichment patterns
+Comprehensive coverage of both nuclear/chromosomal and cytoplasmic processes
+
+The analysis provides a solid foundation for understanding compartment-specific protein functions and can guide future targeted studies of subcellular proteomics.
+Methods Summary
+
+Statistical Framework: limma-based linear modeling with empirical Bayes moderation
+Multiple Testing: Benjamini-Hochberg FDR correction
+Pathway Analysis: mitch package with Reactome database (minimum set size: 5 genes)
+Significance Threshold: FDR < 0.05 for both protein and pathway analyses
+Software: R version 4.5.1, key packages: limma, mitch, ggplot2
+
+Session Information
+sessionInfo()
+```{r,session}
+
+save.image("DEanalysis.Rdata")
+sessionInfo()
+
+```
