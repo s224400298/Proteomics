@@ -26,7 +26,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-# Abstract
+## Abstract
 
 This report presents an exploratory data analysis of proteomics data comparing chromatin-bound and soluble protein fractions. The dataset contains 9,387 proteins across 8 samples (4 chromatin, 4 soluble), with an overall missing data rate of 7.55%. Principal Component Analysis reveals clear separation between chromatin and soluble fractions, with PC1 explaining 97.0% of the variance. After quality control filtering and quantile normalization, 8,378 proteins were retained for downstream analysis. The data shows expected biological patterns with distinct protein profiles between cellular compartments.
 
