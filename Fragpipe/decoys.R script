@@ -1,0 +1,18 @@
+# decoys.R - Generate decoy database for FragPipe workflow
+# Reverses amino acid sequences for FDR calculation
+# Load seqinr library for FASTA handling
+library(seqinr)
+
+# Read input FASTA file
+seqAA <- read.fasta(file = "UP000005640_9606.fasta.gz", seqtype = "AA")
+
+# Reverse sequences to create decoys
+seq_rev <- lapply(seqAA, rev)
+
+# Add "rev_" prefix to sequence names
+names(seq_rev) <- paste("rev_", names(seq_rev), sep="")
+
+# Write decoy database
+write.fasta(sequences = seq_rev, names = names(seq_rev),
+           file.out = "UP000005640_9606_DECOYS.fasta", open = "w",
+           nbchar = 60, as.string = FALSE)
