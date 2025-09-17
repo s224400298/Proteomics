@@ -15,9 +15,12 @@ This work provides researchers with:
 ## Content of this Repository
 
 * `README.md`: This comprehensive guide
-* `Dockerfile`: Build instructions for the Docker image with FragPipe and R environment
+* `Docker Guide`: Build instructions for the Docker image with FragPipe and R environment
+* `Docker_file`:   To run the Fragpipe in a Docker container
+* `decoys.R script`: Script to generate decoy databases 
 * `proteomics_eda.Rmd`: R Markdown template for exploratory data analysis
 * `differential_analysis.Rmd`: R Markdown template for differential expression analysis
+  
   
 ## Docker Container Setup
 
@@ -72,6 +75,9 @@ projects/proteomics/
 ### Download and Prepare Human Proteome Database
 
 ```bash
+# Generate decoy database using R script
+Rscript decoys.R
+
 # Download human proteome from UniProt
 wget https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/reference_proteomes/Eukaryota/UP000005640/UP000005640_9606.fasta.gz
 
