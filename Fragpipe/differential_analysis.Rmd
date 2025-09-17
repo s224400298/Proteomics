@@ -348,7 +348,7 @@ Session Information
 sessionInfo()
 ```{r,session}
 
-save.image("DEanalysis.Rdata")
+save.image("differential_analysis.Rdata")
 sessionInfo()
 
 ```
