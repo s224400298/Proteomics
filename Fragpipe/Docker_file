@@ -1,0 +1,83 @@
+# FragPipe Proteomics Pipeline Docker Container
+# This Dockerfile creates a containerized environment for FragPipe 23.1 with all necessary dependencies for mass spectrometry-based proteomics analysis
+
+FROM ubuntu:24.04
+USER root
+ARG DEBIAN_FRONTEND=noninteractive
+
+# update and upgrade packages
+RUN apt-get -y update --fix-missing \
+    && apt-get -y upgrade \
+    && apt-get -y update \
+    && apt-get -y autoremove
+
+# install mono - required for .NET applications
+RUN apt-get -y install ca-certificates gnupg
+
+# add Mono official GPG key for package verification
+RUN gpg --homedir /tmp --no-default-keyring --keyring /usr/share/keyrings/mono-official-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
+
+# add Mono official repository to sources
+RUN echo "deb [signed-by=/usr/share/keyrings/mono-official-archive-keyring.gpg] https://download.mono-project.com/repo/ubuntu stable-focal main" | tee /etc/apt/sources.list.d/mono-official-stable.list
+
+# update package list and install Mono development environment
+RUN apt-get -y update
+RUN apt-get -y install mono-devel
+
+# add external repositories for Python and .NET packages
+RUN apt install -y software-properties-common
+RUN add-apt-repository ppa:deadsnakes/ppa
+RUN add-apt-repository ppa:dotnet/backports
+RUN apt-get -y update
+
+# install core dependencies for FragPipe and proteomics analysis
+RUN apt-get -y install \
+    git \
+    python3.11 \
+    python3-pip \
+    tar \
+    unzip \
+    wget \
+    openjdk-17-jdk \
+    vim \
+    dotnet-runtime-6.0
+
+# install python packages required for FragPipe workflows
+RUN pip uninstall --break-system-packages easypqp \
+    && pip install --break-system-packages git+https://github.com/Nesvilab/easypqp.git@master \
+    && pip install --break-system-packages lxml \
+    && pip install --break-system-packages plotly \
+    && pip install --break-system-packages kaleido \
+    && pip install --break-system-packages narwhals \
+    && pip install --break-system-packages pyarrow \
+    && pip install --break-system-packages pypdf2
+
+# create FragPipe working directory with full permissions
+RUN mkdir /fragpipe_bin
+RUN chmod 777 /fragpipe_bin
+WORKDIR /fragpipe_bin
+
+# create temporary directory for processing
+RUN mkdir tmp
+RUN chmod 777 tmp
+
+# download and extract FragPipe 23.1 from official GitHub release
+RUN wget https://github.com/Nesvilab/FragPipe/releases/download/23.1/FragPipe-23.1-linux.zip -P fragpipe-23.1
+RUN unzip fragpipe-23.1/FragPipe-23.1-linux.zip -d fragpipe-23.1
+RUN chmod -R 777 /fragpipe_bin
+
+# create dependencies directory and copy FragPipe tools
+RUN mkdir -p /fragpipe_bin/dependencies/
+
+# copy MSFragger (database search engine)
+COPY MSFragger-4.3 /fragpipe_bin/dependencies/MSFragger-4.3
+
+# copy IonQuant (label-free quantification tool)
+COPY IonQuant-1.11.11 /fragpipe_bin/dependencies/IonQuant-1.11.11
+
+# copy diaTracer (data-independent acquisition analysis tool)
+COPY diaTracer-1.3.3 /fragpipe_bin/dependencies/diaTracer-1.3.3
+
+# set Java environment variable for FragPipe
+ENV JAVA_HOME /usr/lib/jvm/java-17-openjdk-amd64/
+RUN export JAVA_HOME
