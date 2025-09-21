@@ -131,14 +131,14 @@ The workflow file defines the analysis parameters.
 The manifest file lists all input files and their experimental conditions:
 
 ```
-/home/projects/proteomics/raw_data/Chrom_01.mzML	Chrom_01	
-/home/projects/proteomics/raw_data/Chrom_02.mzML	Chrom_02	
-/home/projects/proteomics/raw_data/Chrom_03.mzML	Chrom_03	
-/home/projects/proteomics/raw_data/Chrom_04.mzML	Chrom_04	
-/home/projects/proteomics/raw_data/Sol_01.mzML	Sol_01	
-/home/projects/proteomics/raw_data/Sol_02.mzML	Sol_02	
-/home/projects/proteomics/raw_data/Sol_03.mzML	Sol_03	
-/home/projects/proteomics/raw_data/Sol_04.mzML	Sol_04	
+/projects/proteomics/raw_data/Chrom_01.mzML	Chrom_01	
+/projects/proteomics/raw_data/Chrom_02.mzML	Chrom_02	
+/projects/proteomics/raw_data/Chrom_03.mzML	Chrom_03	
+/projects/proteomics/raw_data/Chrom_04.mzML	Chrom_04	
+/projects/proteomics/raw_data/Sol_01.mzML	Sol_01	
+/projects/proteomics/raw_data/Sol_02.mzML	Sol_02	
+/projects/proteomics/raw_data/Sol_03.mzML	Sol_03	
+/projects/proteomics/raw_data/Sol_04.mzML	Sol_04	
 ```
 
 ### Setting Up Manifest Files in FragPipe GUI
