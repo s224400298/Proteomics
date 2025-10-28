@@ -1,46 +1,50 @@
-Proteomics Analysis with MaxQuant
+# Proteomics Analysis with MaxQuant
+
 By Swanitha and Dr. Mark Ziemann
-Introduction
-Mass spectrometry-based proteomics generates complex datasets requiring sophisticated computational pipelines for protein identification, quantification, and downstream statistical analysis. MaxQuant is a comprehensive quantitative proteomics software package that integrates the Andromeda search engine with advanced algorithms for accurate mass and time (AMT) tag-based protein identification and quantification.
+
+## Introduction
+Proteomics experiments using mass spectrometry produce intricate data that demand robust computational workflows for identifying proteins, measuring their abundance, and performing statistical analyses. MaxQuant is an integrated software platform for quantitative proteomics that combines the Andromeda search engine with sophisticated algorithms to achieve precise protein identification and quantification through accurate mass and time measurements.
+
 This work provides researchers with:
 
-A complete MaxQuant analysis pipeline from raw data to results
-Step-by-step guides for label-free quantification (LFQ) and SILAC experiments
-Template R scripts for exploratory data analysis and differential expression
-Complete reproducible analysis from raw mass spectrometry data to biological insights
+* A complete MaxQuant analysis pipeline from raw data to results
+* Step-by-step guides for label-free quantification (LFQ) and SILAC experiments
+* Template R scripts for exploratory data analysis and differential expression
+* Complete reproducible analysis from raw mass spectrometry data to biological insights
 
-Content of this Repository
+## Content of this Repository
 
-README.md: This comprehensive guide
-mqpar_template.xml: MaxQuant parameter file template
-maxquant_eda.Rmd: R Markdown template for exploratory data analysis
-maxquant_differential_analysis.Rmd: R Markdown template for differential expression analysis
-
-
-MaxQuant Installation
-System Requirements
-
-Operating System: Windows 10/11 or Linux (via Mono or .NET Core)
-RAM: Minimum 16GB, recommended 32GB+
-Disk Space: 50GB+ for analysis outputs
-Software Dependencies:
-
-.NET Framework 4.8 (Windows) or .NET 8.0 (Linux)
-For Linux: Mono or .NET 8 runtime
+* `README.md`: This comprehensive guide
+* `mqpar_template.xml`: MaxQuant parameter file template
+* `maxquant_eda.Rmd`: R Markdown template for exploratory data analysis
+* `maxquant_differential_analysis.Rmd`: R Markdown template for differential expression analysis
 
 
+## MaxQuant Installation
+### System Requirements
 
-Installation Steps
-Windows:
+- Operating System: Windows 10/11 or Linux (via Mono or .NET Core)
+- RAM: Minimum 16GB, recommended 32GB+
+- Disk Space: 50GB+ for analysis outputs
+  
+### Software Dependencies:
 
-Download MaxQuant from https://www.maxquant.org/
-Extract the ZIP file to desired location (e.g., C:\MaxQuant)
-Double-click StartMaxQuant.bat to launch GUI
+- .NET Framework 4.8 (Windows) or .NET 8.0 (Linux)
+- For Linux: Mono or .NET 8 runtime
 
-Linux Server:
-MaxQuant requires .NET 8 runtime. Choose one of these installation methods:
-Option 1: Use MaxQuant's Installation Script (Recommended, No sudo)
-bash# Download and extract MaxQuant
+
+## Installation Steps
+### Windows:
+
+- Download MaxQuant from https://www.maxquant.org/
+- Extract the ZIP file to desired location (e.g., C:\MaxQuant)
+- Double-click StartMaxQuant.bat to launch GUI
+
+### Linux Server:
+- MaxQuant requires .NET 8 runtime. Choose one of these installation methods:
+### Option 1: Use MaxQuant's Installation Script (Recommended, No sudo)
+```bash
+Download and extract MaxQuant
 # MaxQuant includes a helper script to install .NET locally
 
 cd MaxQuant_v2.7.3.0/
@@ -56,14 +60,18 @@ source ~/.bashrc
 
 # Verify installation
 dotnet --version
+```
 
-Option 2: System-Wide Installation (Requires sudo)
+### Option 2: System-Wide Installation (Requires sudo)
+```bash 
 # Install .NET 8 runtime
 sudo apt update
 sudo apt install dotnet-runtime-8.0
+```
 
-Option 3
+### Option 3
 # Or install locally without sudo
+```bash
 wget https://dot.net/v1/dotnet-install.sh
 chmod +x dotnet-install.sh
 ./dotnet-install.sh --version 8.0.302 --install-dir ./dotnet8/
@@ -73,6 +81,7 @@ export PATH=$HOME/dotnet8:$PATH
 
 # Verify installation
 dotnet --version
+```
 
 ---
 
