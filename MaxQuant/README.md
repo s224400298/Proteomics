@@ -167,8 +167,6 @@ Save Configuration:
 "File" → "Save parameters" → mqpar.xml
 
 
-
-
 Command Line Setup (Linux Server)
 For Linux server analysis, you need to:
 
@@ -229,66 +227,72 @@ combined/
 └── andromeda/                      # Search engine files
 ```
 ## **Key Output Files**
-File Description proteinGroups.txtPrimary file for downstream analysis. Contains LFQ intensities, identification info, and protein groupspeptides.txtPeptide-level quantification and modificationsevidence.txtAll identified peptide-spectrum matches with retention timessummary.txtQC metrics: proteins/peptides identified per sample
+File                Description 
+- proteinGroups.txt Primary file for downstream analysis. Contains LFQ intensities, identification info, and protein groups
+- peptides.txt      Peptide-level quantification and modifications
+- evidence.txt      All identified peptide-spectrum matches with retention times
+- summary.txt       QC metrics: proteins/peptides identified per sample
 
 R-Based Statistical Analysis
 Exploratory Data Analysis
 Execute the EDA workflow:
+```
 r# In R or RStudio
 rmarkdown::render("maxquant_eda.Rmd")
+```
+
 Key EDA Features:
 
-Data Quality Assessment: Missing data patterns, sample completeness
-Normalization Pipeline: Log transformation + quantile normalization
-Principal Component Analysis: Sample clustering and biological separation
-Quality Control: Histone protein validation
+- Data Quality Assessment: Missing data patterns, sample completeness
+- Normalization Pipeline: Log transformation + quantile normalization
+- Principal Component Analysis: Sample clustering and biological separation
+- Quality Control: Histone protein validation
 
 ## **Expected Results from Example Dataset:**
 
-6,693 proteins across 8 samples after filtering
-Detection statistics:
+- 6,693 proteins across 8 samples after filtering
+- Detection statistics:
 
-5,334 proteins detected in chromatin fraction
-6,394 proteins detected in soluble fraction
-5,047 proteins detected in both fractions
-287 proteins unique to chromatin
-1,347 proteins unique to soluble
-
-Clear separation between chromatin and soluble fractions in PCA
-PC1 explains 63.9% of variance (biological separation)
-PC2 explains 8.0% of variance
-High within-group correlations (>0.95)
-Validation: Histone proteins show expected chromatin enrichment
+- 5,334 proteins detected in chromatin fraction
+- 6,394 proteins detected in soluble fraction
+- 5,047 proteins detected in both fractions
+- 287 proteins unique to chromatin
+- 1,347 proteins unique to soluble
+- Clear separation between chromatin and soluble fractions in PCA
+- PC1 explains 63.9% of variance (biological separation)
+- PC2 explains 8.0% of variance
+- High within-group correlations (>0.95)
+- Validation: Histone proteins show expected chromatin enrichment
 
 ## **Differential Expression Analysis:**
 Execute the differential expression analysis workflow:
+```
 r# In R or RStudio
 rmarkdown::render("maxquant_eda.Rmd")
+```
 Statistical Features:
 
-Linear Modeling: limma-based analysis with empirical Bayes moderation
-Effect Size Analysis: Log fold-change quantification and significance testing
-Visualizations: Volcano plots, MA plots, and quality control plots
+- Linear Modeling: limma-based analysis with empirical Bayes moderation
+- Effect Size Analysis: Log fold-change quantification and significance testing
+- Visualizations: Volcano plots, MA plots, and quality control plots
 
 ## **Expected Results:**
 
-5,047 proteins analyzed (detected in both fractions)
-3,301 significantly differentially expressed proteins (65.4% of total, adj.P < 0.05)
-1,482 proteins enriched in chromatin fractions (adj.P < 0.05, logFC > 0)
-1,819 proteins enriched in soluble fractions (adj.P < 0.05, logFC < 0)
-High stringency (>2-fold change):
+- 5,047 proteins analyzed (detected in both fractions)
+- 3,301 significantly differentially expressed proteins (65.4% of total, adj.P < 0.05)
+- 1,482 proteins enriched in chromatin fractions (adj.P < 0.05, logFC > 0)
+- 1,819 proteins enriched in soluble fractions (adj.P < 0.05, logFC < 0)
+- High stringency (>2-fold change):
+- 932 chromatin-enriched proteins (|logFC| > 1)
+- 490 soluble-enriched proteins (|logFC| > 1)
+- Validation: All detected histone proteins (H1, H2A, H2B, H3, H4) enriched in chromatin as expected
+  
 
-932 chromatin-enriched proteins (|logFC| > 1)
-490 soluble-enriched proteins (|logFC| > 1)
+## **Common Issues and Troubleshooting**
 
-
-Validation: All detected histone proteins (H1, H2A, H2B, H3, H4) enriched in chromatin as expected
-```
-Common Issues and Troubleshooting
 1. Out of Memory Errors
 Error: Java heap space or system hanging
 Solution:
-
 Increase RAM allocation in MaxQuant settings
 Process fewer files simultaneously
 Use server with more RAM (32GB+)
@@ -296,7 +300,6 @@ Use server with more RAM (32GB+)
 2. .NET/Mono Compatibility (Linux)
 Error: Unable to load DLL or framework errors
 Solution:
-
 Use .NET 8 instead of Mono
 Install correct .NET runtime version
 Check library dependencies
@@ -304,14 +307,16 @@ Check library dependencies
 3. Invalid Format / Line Ending Issues
 Error: invalid format when reading key files
 Solution:
-bash# Fix Windows line endings
+```
+bash
+# Fix Windows line endings
 dos2unix mqpar.xml
 # OR
 sed -i 's/\r$//' mqpar.xml
+```
 4. Empty proteinGroups.txt
 Issue: Analysis completes but no proteins identified
 Solution:
-
 Check raw files are not corrupted
 Verify FASTA database is correct format
 Check search tolerances aren't too strict
@@ -320,11 +325,13 @@ Review summary.txt for search statistics
 5. Disk Space Issues (Linux)
 Error: Analysis stops at MS/MS preparation
 Solution:
+```
 bash# Check disk space
 df -h
 
 # Clean up temporary files
 rm -rf combined/proc/*
+```
 
 Performance Tips
 
@@ -332,7 +339,6 @@ CPU threads: Set to number of CPU cores
 RAM: Allocate 4-8GB per thread
 Disk: Use SSD for faster I/O
 File size: Large files (>5GB) may take 2-3 hours each
-```
 
 
 
