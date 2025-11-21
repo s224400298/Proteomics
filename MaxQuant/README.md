@@ -16,8 +16,7 @@ This work provides researchers with:
 
 * `README.md`: This comprehensive guide
 * `mqpar_template.xml`: MaxQuant parameter file template
-* `maxquant_eda.Rmd`: R Markdown template for exploratory data analysis
-* `maxquant_differential_analysis.Rmd`: R Markdown template for differential expression analysis
+* `maxquant_eda.Rmd`: R Markdown template for exploratory data analysis and differential expression analysis
 
 
 ## MaxQuant Installation
@@ -228,8 +227,9 @@ combined/
 │   └── modificationSpecificPeptides.txt
 ├── proc/                           # Processing files
 └── andromeda/                      # Search engine files
-Key Output Files
-FileDescriptionproteinGroups.txtPrimary file for downstream analysis. Contains LFQ intensities, identification info, and protein groupspeptides.txtPeptide-level quantification and modificationsevidence.txtAll identified peptide-spectrum matches with retention timessummary.txtQC metrics: proteins/peptides identified per sample
+```
+## **Key Output Files**
+File Description proteinGroups.txtPrimary file for downstream analysis. Contains LFQ intensities, identification info, and protein groupspeptides.txtPeptide-level quantification and modificationsevidence.txtAll identified peptide-spectrum matches with retention timessummary.txtQC metrics: proteins/peptides identified per sample
 
 R-Based Statistical Analysis
 Exploratory Data Analysis
@@ -243,16 +243,47 @@ Normalization Pipeline: Log transformation + quantile normalization
 Principal Component Analysis: Sample clustering and biological separation
 Quality Control: Histone protein validation
 
-Expected Results from Example Dataset:
+## **Expected Results from Example Dataset:**
 
-6,693 proteins after filtering
+6,693 proteins across 8 samples after filtering
+Detection statistics:
+
+5,334 proteins detected in chromatin fraction
+6,394 proteins detected in soluble fraction
+5,047 proteins detected in both fractions
+287 proteins unique to chromatin
+1,347 proteins unique to soluble
+
 Clear separation between chromatin and soluble fractions in PCA
-High within-group correlations 
+PC1 explains 63.9% of variance (biological separation)
+PC2 explains 8.0% of variance
+High within-group correlations (>0.95)
+Validation: Histone proteins show expected chromatin enrichment
+
+## **Differential Expression Analysis:**
+Execute the differential expression analysis workflow:
+r# In R or RStudio
+rmarkdown::render("maxquant_eda.Rmd")
+Statistical Features:
+
+Linear Modeling: limma-based analysis with empirical Bayes moderation
+Effect Size Analysis: Log fold-change quantification and significance testing
+Visualizations: Volcano plots, MA plots, and quality control plots
+
+## **Expected Results:**
+
+5,047 proteins analyzed (detected in both fractions)
+3,301 significantly differentially expressed proteins (65.4% of total, adj.P < 0.05)
+1,482 proteins enriched in chromatin fractions (adj.P < 0.05, logFC > 0)
+1,819 proteins enriched in soluble fractions (adj.P < 0.05, logFC < 0)
+High stringency (>2-fold change):
+
+932 chromatin-enriched proteins (|logFC| > 1)
+490 soluble-enriched proteins (|logFC| > 1)
 
 
-
-
-
+Validation: All detected histone proteins (H1, H2A, H2B, H3, H4) enriched in chromatin as expected
+```
 Common Issues and Troubleshooting
 1. Out of Memory Errors
 Error: Java heap space or system hanging
@@ -301,5 +332,7 @@ CPU threads: Set to number of CPU cores
 RAM: Allocate 4-8GB per thread
 Disk: Use SSD for faster I/O
 File size: Large files (>5GB) may take 2-3 hours each
+```
+
 
 
