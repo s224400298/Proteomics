@@ -251,8 +251,8 @@ Key EDA Features:
 ## **Expected Results from Example Dataset:**
 
 - 6,693 proteins across 8 samples after filtering
-- Detection statistics:
 
+ **Detection statistics:**
 - 5,334 proteins detected in chromatin fraction
 - 6,394 proteins detected in soluble fraction
 - 5,047 proteins detected in both fractions
