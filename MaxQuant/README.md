@@ -89,7 +89,7 @@ dotnet --version
 This workflow can be applied to publicly available proteomics datasets. For demonstration, we used **PXD058340**, which contains data from a Thermo Astral Orbitrap instrument:
 
 - **Dataset**: Chromatin vs Soluble protein fractions from U2OS cells
-- **Technique**: Data-Dependent Acquisition (DDA) mass spectrometry
+- **Technique**: Data-Independent Acquisition (DIA) mass spectrometry
 - **Samples**: 8 samples (4 chromatin-bound, 4 soluble fractions)
 - **Proteins**: 6,693 identified proteins after filtering
 
