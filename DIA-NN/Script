@@ -1,1 +1,100 @@
+# DIA-NN Analysis Workflow
+- Prerequisites
+```bash
+# Install .NET Runtime (required for .raw files)
+cd ~
+wget https://dot.net/v1/dotnet-install.sh
+chmod +x dotnet-install.sh
+./dotnet-install.sh --channel 8.0 --install-dir ~/.dotnet
+
+# Add to PATH
+echo 'export PATH=$PATH:~/.dotnet' >> ~/.bashrc
+echo 'export DOTNET_ROOT=~/.dotnet' >> ~/.bashrc
+source ~/.bashrc
+
+# Verify installation
+dotnet --version
+```
+```bash
+# Download and setup DIA-NN
+mkdir -p ~/projects/proteomics/diann-analysis
+cd ~/projects/proteomics/diann-analysis
+
+wget https://github.com/vdemichev/DiaNN/releases/download/2.0/DIA-NN-2.1.0-Academia-Linux.zip
+unzip DIA-NN-2.1.0-Academia-Linux.zip
+chmod +x diann-2.1.0/diann-linux
+```
+```bash
+# Download human proteome database
+wget https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/reference_proteomes/Eukaryota/UP000005640/UP000005640_9606.fasta.gz
+gunzip UP000005640_9606.fasta.gz
+```
+
+### *Complete Two-Step Pipeline*
+#### *Step 1: Generate Spectral Library from FASTA*
+```bash
+cd ~/projects/proteomics/diann-analysis
+nohup bash -c 'export PATH=$PATH:~/.dotnet && export DOTNET_ROOT=~/.dotnet && \
+./diann-2.1.0/diann-linux \
+  --lib "" \
+  --threads 16 \
+  --verbose 3 \
+  --out-lib library-from-fasta.predicted.speclib \
+  --gen-spec-lib \
+  --predictor \
+  --fasta UP000005640_9606.fasta \
+  --fasta-search \
+  --met-excision \
+  --cut K*,R* \
+  --missed-cleavages 2 \
+  --unimod4' > library_generation.log 2>&1 &
+```
+```bash 
+# Monitor progress
+tail -f library_generation.log
+Time: ~15-20 minutes
+```
+
+#### *Step 2: Search Raw Files with Library*
+```bash
+nohup bash -c 'export PATH=$PATH:~/.dotnet && export DOTNET_ROOT=~/.dotnet && \
+./diann-2.1.0/diann-linux \
+  --f 20240911_AST0_NEO4_IAH_collab_SAG_U2OS_Frac_Control_Chrom_01.raw \
+  --f 20240911_AST0_NEO4_IAH_collab_SAG_U2OS_Frac_Control_Chrom_02.raw \
+  --f 20240911_AST0_NEO4_IAH_collab_SAG_U2OS_Frac_Control_Chrom_03.raw \
+  --f 20240911_AST0_NEO4_IAH_collab_SAG_U2OS_Frac_Control_Chrom_04.raw \
+  --f 20240911_AST0_NEO4_IAH_collab_SAG_U2OS_Frac_Control_Sol_01.raw \
+  --f 20240911_AST0_NEO4_IAH_collab_SAG_U2OS_Frac_Control_Sol_02.raw \
+  --f 20240911_AST0_NEO4_IAH_collab_SAG_U2OS_Frac_Control_Sol_03.raw \
+  --f 20240911_AST0_NEO4_IAH_collab_SAG_U2OS_Frac_Control_Sol_04.raw \
+  --lib library-from-fasta.predicted.speclib \
+  --threads 16 \
+  --out final_report.parquet \
+  --qvalue 0.01 \
+  --matrices \
+  --met-excision > final_analysis.log 2>&1 &
+```
+ ```bash
+# Monitor progress
+tail -f final_analysis.log
+Time: ~4-6 hours for 8 files
+```
+
+#### *Monitoring Commands*
+```bash
+# Check if DIA-NN is running
+ps aux | grep diann
+
+# View log files
+tail -f library_generation.log
+tail -f final_analysis.log
+
+# Check output files
+ls -lh final_report.*
+ls -lh library-from-fasta.predicted.speclib
+
+# Count processed files
+ls -1 *.quant 2>/dev/null | wc -l
+
+
 
