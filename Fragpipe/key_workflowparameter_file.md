@@ -9,7 +9,7 @@
 
 | Experiment | Changes Needed |
 |------------|----------------|
-| Label-Free DDA | ✅ Use default workflow |
+| Label-Free DDA | Use default workflow |
 | TMT/iTRAQ | 5 parameters |
 | SILAC | 3 parameters |
 | Phosphoproteomics | 2 parameters |
