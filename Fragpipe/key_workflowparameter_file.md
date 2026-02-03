@@ -1,246 +1,440 @@
-# FragPipe DIA Workflow Documentation
+# FragPipe Workflow Quick Reference
 
-**Workflow Name:** DIA_SpecLib_Quant  
-**FragPipe Version:** 24.0    
-**Purpose:** DIA data analysis with spectral library building and quantification
-
----
-
-## 1. Workflow Overview
-
-### Strategy
-
-This workflow performs direct identification from DIA data and builds a spectral library for accurate quantification:
-
-1. **MSFragger-DIA** → Direct peptide identification from DIA data
-2. **MSBooster** → Deep learning predictions (RT, IM, spectra)
-3. **Percolator** → Machine learning-based PSM validation
-4. **ProteinProphet** → Protein-level inference
-5. **EasyPQP** → Spectral library generation
-6. **DIA-NN** → Library-based quantification (primary method)
-7. **IonQuant** → MS1-based label-free quantification (complementary)
-
-### Input Requirements
-
-- **File format:** mzML (required for DIA-NN quantification)
-- **Data type:** DIA mass spectrometry data
-- **Instrument:** Compatible with high-resolution MS instruments
-- **Database:** FASTA protein database (path: `C:\FragPipe\FragPipe-24.0\databases`)
-
-### Key Outputs
-
-- **Spectral library:** `library.tsv` (for DIA-NN)
-- **Quantification:** `report.tsv` (DIA-NN main output)
-- **Protein results:** `protein.tsv`, `peptide.tsv`, `psm.tsv`
-- **MSstats format:** `MSstats.csv` (for downstream statistical analysis)
+> **Version:** FragPipe 24.0  
+> **Purpose:** Quick parameter changes for common proteomics experiments
 
 ---
 
-## 2. Critical Parameters
+## Choose Your Experiment
 
-### Database Search (MSFragger)
-
-| Parameter | Value | Why This Matters |
-|-----------|-------|------------------|
-| **Enzyme** | Strict Trypsin | Cleaves after K/R; matches sample preparation |
-| **Missed cleavages** | 1 | Allows some incomplete digestion |
-| **Peptide length** | 7-50 aa | Optimal range for MS detection |
-| **Precursor tolerance** | ±20 ppm | Mass accuracy for precursor matching |
-| **Fragment tolerance** | 20 ppm | Mass accuracy for fragment ion matching |
-| **Mass calibration** | Enabled (mode 2) | Optimizes tolerances automatically; improves accuracy |
-
-**Fixed Modification:**
-- **Carbamidomethyl (C):** +57.021 Da - Standard cysteine alkylation from sample prep
-
-**Variable Modifications (max 3 per peptide):**
-- **Oxidation (M):** +15.995 Da - Common artifact
-- **Acetylation (protein N-term):** +42.011 Da - Common biological modification
-- **Phosphorylation (S/T/Y):** +79.966 Da - Key signaling modification
-- **Deamidation (Q/C):** -17.027 Da - Artifact and biological modification
-- **Deamidation (E):** -18.011 Da - Artifact and biological modification
-
-**Rationale for modifications:** These capture the most common biological modifications and sample preparation artifacts. Phosphorylation is included for signaling pathway analysis.
+| Experiment | Changes Needed |
+|------------|----------------|
+| Label-Free DDA | ✅ Use default workflow |
+| TMT/iTRAQ | 5 parameters |
+| SILAC | 3 parameters |
+| Phosphoproteomics | 2 parameters |
+| DIA | 8 parameters |
+| Oxidation Studies | Add mods |
+| Missed Cleavages/Incomplete Digestion | 2 parameters |
+| Glycoproteomics | 4 parameters |
+| Ubiquitination | Add 1 mod |
+| Acetylation (Histones) | Add 1 mod |
+| Methylation | Add mods |
+| Non-Tryptic Digestion | 2 parameters |
 
 ---
 
-### Identification & Validation
+## 1. Label-Free DDA (Default)
 
-| Module | Status | Key Settings | Purpose |
-|--------|--------|--------------|---------|
-| **MSBooster** | ✓ Enabled | Predict RT, IM, MS/MS spectra<br>Model: DIA-NN | Adds deep learning features to improve PSM discrimination; increases sensitivity 10-30% |
-| **Percolator** | ✓ Enabled | Min probability: 0.7<br>Post-processing: TDC | Machine learning rescoring; provides accurate FDR estimates |
-| **ProteinProphet** | ✓ Enabled | Min probability: 0.5 | Protein-level inference from peptide identifications |
+**Base workflow:** `basicsearchworkflowfile` - No changes needed!
 
----
-
-### Spectral Library Building (EasyPQP)
-
-| Parameter | Value | Rationale |
-|-----------|-------|-----------|
-| **Fragment ions** | b, y | Standard ion series for CID/HCD fragmentation |
-| **RT calibration** | noiRT | Uses common RT (ciRT) instead of iRT peptides |
-| **IM calibration** | Automatic | Automatically selects best reference run |
-| **Max mass error** | 15 ppm | Quality filter for library entries |
-
----
-
-### Quantification
-
-#### DIA-NN (Primary Quantification)
-
-| Parameter | Value | Why This Setting |
-|-----------|-------|------------------|
-| **Q-value cutoff** | 0.01 | 1% FDR at precursor level |
-| **Match-Between-Runs** | **DISABLED** | Not needed for DIA; library provides completeness |
-| **Quantification strategy** | 3 (primary), 2 (secondary) | Optimized for library-based DIA quantification |
-| **Generate MSstats** | Enabled | For downstream statistical analysis |
-| **Outputs** | Peptide + modified peptide levels | Modification-aware quantification |
-
-**Why MBR is disabled:** DIA data typically detects >90% of peptides across all runs. Library-based quantification provides high completeness without needing to transfer identifications between runs, reducing false positives.
-
-#### IonQuant (Complementary MS1 Quantification)
-
-| Parameter | Value | Purpose |
-|-----------|-------|---------|
-| **Label-free quant** | Enabled | MS1-based quantification |
-| **MaxLFQ** | Enabled | Robust normalization algorithm |
-| **Match-Between-Runs** | **DISABLED** | Same rationale as DIA-NN |
-| **Normalization** | Median | Corrects for loading differences |
-| **MS1 tolerance** | 10 ppm (m/z), 0.4 min (RT) | XIC extraction parameters |
-
----
-
-## 3. Quality Control & FDR Settings
-
-| Level | FDR Threshold | Method |
-|-------|---------------|--------|
-| **PSM** | 1% | Percolator (target-decoy competition) |
-| **Peptide** | 1% | Percolator + ProteinProphet |
-| **Protein** | 1% | ProteinProphet |
-| **Ion (DIA-NN)** | 1% | DIA-NN q-value filtering |
-
-**Decoy generation:** Reverse sequence with "rev_" prefix
-
----
-
-## 4. Non-Standard Choices & Justifications
-
-### Why Both DIA-NN AND IonQuant?
-
-- **DIA-NN:** MS2-based library quantification (fragment-level) - primary for DIA
-- **IonQuant:** MS1-based precursor quantification - provides complementary validation
-- Using both increases confidence and enables comparison
-
-### Why MSBooster + Percolator Instead of Just PeptideProphet?
-
-- MSBooster adds powerful predictive features (RT, IM, spectra similarity)
-- Percolator uses machine learning to optimally combine all features
-- This combination is current best practice for DIA analysis
-- Significantly improves sensitivity over traditional scoring
-
-### Why These Specific Variable Modifications?
-
-- **Limited to 5 modifications** to keep search space manageable
-- **Phosphorylation:** Critical for cell signaling studies
-- **Oxidation & Deamidation:** Most common artifacts that must be accounted for
-- **Acetylation:** Common biological modification at protein N-terminus
-- These cover >95% of expected modifications in typical proteomics experiments
-
----
-
-## 5. Reproducibility Information
-
-### Workflow Execution
-
-```
-FragPipe 24.0
-MSFragger version: Latest with DIA support
-DIA-NN: Integrated version
-Percolator: Integrated version
+### Verify these settings:
+```properties
+ionquant.use-lfq=true
+ionquant.mbr=1
+msfragger.search_enzyme_name_1=stricttrypsin
+msfragger.allowed_missed_cleavage_1=2
 ```
 
-
-
-## 6. Expected Outputs & How to Use Them
-
-| Output File | Content | Use For |
-|-------------|---------|---------|
-| `library.tsv` | Spectral library | DIA-NN quantification input |
-| `report.tsv` | DIA-NN quantification | Main quantitative results |
-| `protein.tsv` | Protein-level quant | Protein expression analysis |
-| `peptide.tsv` | Peptide-level quant | Peptide-level analysis |
-| `MSstats.csv` | Statistical analysis format | Differential expression (MSstats) |
-| `psm.tsv` | PSM-level results | Quality control |
+**Output:** `combined_protein.tsv`, `combined_ion.tsv`
 
 ---
 
-## 7. Common Issues & Solutions
+## 2. TMT/iTRAQ Labeling
 
-| Issue | Likely Cause | Solution |
-|-------|--------------|----------|
-| Low protein IDs | Wrong enzyme or modifications | Verify sample prep matches parameters |
-| High %FDR | Database too large | Use species-specific database |
-| Memory error | Too many peaks processed | Reduce `use_topN_peaks` to 500 |
-| Slow processing | Large database | Database already sliced (enabled) |
+### Change 5 parameters:
 
----
+```properties
+# 1-2. Switch to labeled mode
+ionquant.use-lfq=false
+ionquant.use-labeling=true
 
-## 8. References & Documentation
+# 3-4. Enable TMT
+tmtintegrator.run-tmtintegrator=true
+tmtintegrator.channel_num=TMT-16
 
-### Key Publications:
+# 5. Add TMT to fixed mods (replace entire line)
+msfragger.table.fix-mods=57.02146,C,true,-1; 229.162932,K,true,-1; 229.162932,n,true,-1
+```
 
-- **MSFragger-DIA:** Yu et al., *Nature Communications* 14:4154 (2023)
-- **IonQuant:** Yu et al., *Mol Cell Proteomics* 20:100077 (2021)
-- **Philosopher:** da Veiga Leprevost et al., *Nature Methods* 17:869 (2020)
+**TMT Options:** TMT-6, TMT-10, TMT-11, TMT-16, TMT-18, iTRAQ-4, iTRAQ-8
 
-### Official Documentation:
+**Ratio compression fix:** `tmtintegrator.min_purity=0.7` (up from 0.5)
 
-- **FragPipe:** https://fragpipe.nesvilab.org/docs/
-- **DIA Tutorial:** https://fragpipe.nesvilab.org/docs/tutorial_DIA.html
-- **Parameter Guide:** https://fragpipe.nesvilab.org/docs/tutorial_fragpipe.html
+**Output:** `abundance_protein_MD.txt`, `abundance_peptide_MD.txt`
 
 ---
 
-## 9. Parameter Summary Table
+## 3. SILAC Labeling
 
-### Complete Parameter Settings for Issue #3
+### Change 3 parameters:
 
-| Category | Parameter | Value | Impact on Results |
-|----------|-----------|-------|-------------------|
-| **Search** | Enzyme | Strict trypsin | Determines which peptides are searched |
-| | Missed cleavages | 1 | Allows semi-tryptic peptides |
-| | Precursor tolerance | ±20 ppm | Affects precursor matching stringency |
-| | Fragment tolerance | 20 ppm | Affects fragment matching stringency |
-| | Mass calibration | On (mode 2) | Automatically optimizes tolerances |
-| **Mods** | Fixed: C | +57.021 Da | Accounts for alkylation |
-| | Variable: M, N-term, STY, Q/C/E | See section 2 | Captures biological & artifact mods |
-| **Validation** | MSBooster | Enabled | Improves sensitivity 10-30% |
-| | Percolator | Enabled | Machine learning FDR control |
-| | ProteinProphet | Enabled | Protein-level inference |
-| **Library** | Fragment ions | b, y | Standard for HCD/CID |
-| | RT calibration | noiRT | No iRT peptides needed |
-| **Quant** | DIA-NN | Enabled, 1% FDR | Primary quantification |
-| | MBR (both tools) | Disabled | Not needed for DIA |
-| | IonQuant | Enabled | Complementary MS1 quant |
-| | Normalization | Median | Corrects loading differences |
+```properties
+# 1-2. Switch to labeled mode
+ionquant.use-lfq=false
+ionquant.use-labeling=true
+
+# 3. Define channels (example: Heavy R10/K8)
+ionquant.light=
+ionquant.heavy=K8;R10
+```
+
+**SILAC codes:** K4, K8 (lysine) | R6, R10 (arginine)
+
+**For 3-state SILAC:** Add `ionquant.medium=K4;R6`
+
+**Note:** Variable mods already in base workflow ✓
+
+---
+
+## 4. Phosphoproteomics
+
+### Optional changes (phospho already included):
+
+```properties
+# For enriched samples
+msfragger.max_variable_mods_per_peptide=5
+msfragger.allowed_missed_cleavage_1=3
+```
+
+**Note:** Phosphorylation (79.96633,STY) is already in default workflow
+
+**PTM localization:** `ionquant.locprob=0.75` (default, can increase to 0.9)
+
+---
+
+## 5. DIA
+
+### Change 8 parameters:
+
+```properties
+# Enable DIA tools
+diann.run-dia-nn=true
+speclibgen.run-speclibgen=true
+
+# MBR settings
+ionquant.mbr=0
+diann.mbr=true
+
+# DIA-specific
+diann.quantification-strategy=3
+msfragger.use_topN_peaks=1000
+msfragger.minimum_ratio=0.00
+speclibgen.easypqp.rt-cal=noiRT
+```
+
+**RT calibration options:**
+- `noiRT` - DIA-only workflows
+- `ciRT` - Fractionated DDA library
+- `iRT` - Non-human organisms
+
+---
+
+## 6. Oxidation Studies
+
+### Add to variable mods:
+
+```properties
+# Already included: 15.9949,M (Met oxidation)
+
+# Add these:
+15.9949,W,false,2    # Trp oxidation
+15.9949,P,false,2    # Pro oxidation
+15.9949,H,false,2    # His oxidation
+31.9898,M,false,1    # Met dioxidation
+
+# Also increase:
+msfragger.max_variable_mods_per_peptide=5
+```
+
+---
+
+## 7. Missed Cleavages / Incomplete Digestion
+
+**Use case:** Study proteolysis, poor digestion, or intentional incomplete digestion
+
+```properties
+# Increase missed cleavages
+msfragger.allowed_missed_cleavage_1=5
+
+# For semi-specific search (one end must be enzymatic)
+msfragger.num_enzyme_termini=1
+```
+
+**Note:** Each missed cleavage ~doubles search time. Use 3-5 for studying missed lysines/arginines.
+
+---
+
+## 8. Glycoproteomics
+
+### Enable glyco search:
+
+```properties
+# Enable PTM-Shepherd glyco mode
+ptmshepherd.run-shepherd=true
+ptmshepherd.run_glyco_mode=true
+ptmshepherd.n_glyco=true
+ptmshepherd.glyco_ppm_tol=50
+```
+
+**Note:** Requires glycan database. Use built-in or custom glycan composition file.
+
+**Common N-glycans already searched:** HexNAc, Hex, NeuAc, Fuc
+
+---
+
+## 9. Ubiquitination
+
+### Add to variable mods:
+
+```properties
+# Add GlyGly (K-ε-GG) - tryptic Ub remnant
+114.0429,K,false,1
+```
+
+**Note:** This is the diGly signature after trypsin digestion of ubiquitinated proteins.
+
+**Tip:** Use with `msfragger.allowed_missed_cleavage_1=3` as Ub sites may block cleavage.
+
+---
+
+## 10. Acetylation (Histones/Regulatory)
+
+### Add to variable mods:
+
+```properties
+# Lysine acetylation (already has N-term acetylation)
+42.0106,K,false,3
+```
+
+**Note:** N-terminal acetylation (42.0106,[^) already in default workflow.
+
+**For histone studies:** Consider increasing to max 5 acetylations per peptide.
+
+---
+
+## 11. Methylation
+
+### Add to variable mods:
+
+```properties
+# Lysine methylation
+14.0157,K,false,2    # Monomethyl
+28.0313,K,false,1    # Dimethyl
+42.0470,K,false,1    # Trimethyl
+
+# Arginine methylation
+14.0157,R,false,2    # Monomethyl (symmetric/asymmetric)
+28.0313,R,false,1    # Dimethyl
+```
+
+**Note:** Set `msfragger.max_variable_mods_per_peptide=5` for heavily methylated samples.
+
+---
+
+## 12. Non-Tryptic Digestion
+
+### Change enzyme settings:
+
+```properties
+# For LysC
+msfragger.search_enzyme_name_1=lysc
+msfragger.search_enzyme_cut_1=K
+
+# For GluC
+msfragger.search_enzyme_name_1=gluc
+msfragger.search_enzyme_cut_1=DE
+
+# For Chymotrypsin
+msfragger.search_enzyme_name_1=chymotrypsin
+msfragger.search_enzyme_cut_1=FWYL
+```
+
+**Common enzymes:** `stricttrypsin`, `trypsin`, `lysc`, `argc`, `gluc`, `chymotrypsin`, `aspn`
+
+**For dual enzyme:** Use `msfragger.search_enzyme_name_2` (advanced)
+
+---
+
+## Common Modifications Reference
+
+### Fixed Mods (always present)
+```properties
+57.02146,C          # Carbamidomethyl (IAA alkylation)
+71.037114,C         # Propionamide (alternative to IAA)
+229.162932,K        # TMT on lysine
+229.162932,n        # TMT on N-terminus
+304.207146,K        # iTRAQ 8-plex on lysine
+304.207146,n        # iTRAQ 8-plex on N-terminus
+```
+
+### Variable Mods (may be present)
+```properties
+15.9949,M           # Met oxidation
+42.0106,[^          # N-term acetylation
+79.96633,STY        # Phosphorylation
+114.0429,K          # GlyGly (ubiquitin)
+42.0106,K           # Lys acetylation
+14.0157,K           # Lys monomethyl
+28.0313,K           # Lys dimethyl
+42.0470,K           # Lys trimethyl
+0.984016,N          # Asn deamidation
+0.984016,Q          # Gln deamidation
+-17.0265,nQnC       # Pyro-glu (N-term Q/C)
+-18.0106,nE         # Pyro-glu (N-term E)
+203.0794,ST         # O-GlcNAc
+```
 
 ---
 
 
-This documentation provides:
+## FDR Control
 
- **Overall workflow strategy** - DIA library building + quantification pipeline  
- **Critical parameters** - Search settings, modifications, validation, quantification  
- **Context for choices** - Why MBR disabled, why these mods, why MSBooster  
- **Reproducibility** - Complete settings and expected outputs  
+| Level | Parameter | Default | Stringent |
+|-------|-----------|---------|-----------|
+| Ion/PSM | `ionquant.ionfdr` | 0.01 (1%) | 0.001 (0.1%) |
+| Peptide | `ionquant.peptidefdr` | 1.0 (off) | 0.01 (1%) |
+| Protein | `ionquant.proteinfdr` | 1.0 (off) | 0.01 (1%) |
+| PTM localization | `ionquant.locprob` | 0.75 (75%) | 0.9 (90%) |
 
-### Key Decision Justifications:
-
-1. **MBR disabled:** DIA data has high completeness; library-based quant doesn't need it
-2. **MSBooster + Percolator:** Current best practice; improves sensitivity significantly
-3. **Both DIA-NN and IonQuant:** Complementary methods provide validation
-4. **5 variable modifications:** Balance between coverage and search space size
-5. **1% FDR at all levels:** Standard stringent threshold for high-confidence results
+**Recommendation:** Use 1% FDR for standard analyses, 0.1% for high-confidence hits.
 
 ---
 
+## Performance Tuning
+
+### For FASTER searches:
+```properties
+msfragger.allowed_missed_cleavage_1=1
+msfragger.max_variable_mods_per_peptide=2
+msfragger.isotope_error=0/1/2
+```
+
+### For MAXIMUM sensitivity:
+```properties
+msfragger.allowed_missed_cleavage_1=3
+msfragger.max_variable_mods_per_peptide=5
+msfragger.isotope_error=0/1/2/3
+msbooster.run-msbooster=true
+ionquant.mbr=1
+```
+
+---
+
+## Quick Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| Too few IDs | Check enzyme, widen mass tolerance to ±20 ppm |
+| Search too slow | Reduce to 3-4 variable mods, use 2 missed cleavages |
+| No quantification | Verify `use-lfq` vs `use-labeling` setting |
+| TMT ratio compression | Increase `tmtintegrator.min_purity` to 0.7 |
+| Poor MBR | Check LC reproducibility, adjust `mbrrttol` |
+| Memory error | Reduce `max_variable_mods_combinations` to 2000 |
+
+---
+
+## Database Selection
+
+| Organism | UniProt ID | Source |
+|----------|------------|--------|
+| Human | UP000005640 | Swiss-Prot reviewed |
+| Mouse | UP000000589 | Swiss-Prot reviewed |
+| Rat | UP000002494 | Swiss-Prot reviewed |
+| E. coli K-12 | UP000000625 | Swiss-Prot reviewed |
+| Yeast | UP000002311 | Swiss-Prot reviewed |
+| Contaminants | cRAP | [Download](https://www.thegpm.org/crap/) |
+
+**Best practice:** Use reviewed (Swiss-Prot) + contaminants. Ensure decoys present (rev_ prefix).
+
+---
+
+## Key Parameter Summary
+
+| Parameter | Purpose | Default | When to Change |
+|-----------|---------|---------|----------------|
+| `database.db-path` | FASTA location | User set | Always |
+| `msfragger.search_enzyme_name_1` | Digestion enzyme | stricttrypsin | Match protocol |
+| `msfragger.allowed_missed_cleavage_1` | Max missed sites | 2 | 3-5 for incomplete digestion |
+| `msfragger.max_variable_mods_per_peptide` | Max var mods | 3 | 5 for heavily modified |
+| `msfragger.precursor_mass_lower/upper` | MS1 tolerance | ±20 ppm | Match instrument |
+| `msfragger.isotope_error` | C13 correction | 0/1/2/3 | Keep for high-res |
+| `ionquant.mbr` | Match-between-runs | 1 | 0 for single runs |
+| `ionquant.use-lfq` | Label-free quant | true | false for TMT/SILAC |
+| `ionquant.use-labeling` | Labeled quant | false | true for TMT/SILAC |
+| `ionquant.ionfdr` | FDR threshold | 0.01 (1%) | 0.001 for stringent |
+
+---
+
+## Pre-Flight Checklist
+
+- [ ] Database path set: `database.db-path`
+- [ ] Enzyme matches protocol: `search_enzyme_name_1`
+- [ ] Fixed mods match sample prep (alkylation method)
+- [ ] Variable mods appropriate for experiment
+- [ ] Mass tolerances match instrument capabilities
+- [ ] Quantification mode correct (LFQ vs labeled)
+- [ ] TMT: Labels added to fixed mods
+- [ ] SILAC: Channels defined correctly
+- [ ] DIA: DIA-NN and library generation enabled
+- [ ] FDR thresholds appropriate (1% standard)
+- [ ] Test on 2-3 files before full dataset
+- [ ] Sufficient disk space (10GB+ per sample)
+
+---
+
+## Workflow Templates
+
+### Label-Free DDA
+```bash
+# Use: basicsearchworkflowfile (no changes)
+```
+
+### TMT-16plex
+```bash
+ionquant.use-lfq=false
+ionquant.use-labeling=true
+tmtintegrator.run-tmtintegrator=true
+tmtintegrator.channel_num=TMT-16
+# Add TMT to fix-mods
+```
+
+### SILAC (Heavy R10/K8)
+```bash
+ionquant.use-lfq=false
+ionquant.use-labeling=true
+ionquant.heavy=K8;R10
+```
+
+### DIA
+```bash
+diann.run-dia-nn=true
+speclibgen.run-speclibgen=true
+ionquant.mbr=0
+diann.mbr=true
+msfragger.use_topN_peaks=1000
+```
+
+### Phosphoproteomics
+```bash
+# Phospho already in base workflow
+msfragger.max_variable_mods_per_peptide=5
+msfragger.allowed_missed_cleavage_1=3
+```
+
+### Missed Cleavages Study
+```bash
+msfragger.allowed_missed_cleavage_1=5
+msfragger.num_enzyme_termini=1  # semi-specific
+```
+
+---
+
+## Resources
+
+- **FragPipe Website:** [https://fragpipe.nesvilab.org/](https://fragpipe.nesvilab.org/)
+- **GitHub:** [Nesvilab/FragPipe](https://github.com/Nesvilab/FragPipe)
+- **Forum:** [GitHub Discussions](https://github.com/Nesvilab/FragPipe/discussions)
+- **Tutorial Videos:** [YouTube @ionquant](https://www.youtube.com/@ionquant)
+
+---
