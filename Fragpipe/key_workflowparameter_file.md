@@ -423,7 +423,4 @@ msfragger.num_enzyme_termini=1  # semi-specific
 
 - **FragPipe Website:** [https://fragpipe.nesvilab.org/](https://fragpipe.nesvilab.org/)
 - **GitHub:** [Nesvilab/FragPipe](https://github.com/Nesvilab/FragPipe)
-- **Forum:** [GitHub Discussions](https://github.com/Nesvilab/FragPipe/discussions)
-- **Tutorial Videos:** [YouTube @ionquant](https://www.youtube.com/@ionquant)
-
 ---
