@@ -36,10 +36,6 @@ msfragger.search_enzyme_name_1=stricttrypsin
 msfragger.allowed_missed_cleavage_1=2
 ```
 
-**Output:** `combined_protein.tsv`, `combined_ion.tsv`
-
----
-
 ## 2. TMT/iTRAQ Labeling
 
 ### Change 5 parameters:
@@ -60,8 +56,6 @@ msfragger.table.fix-mods=57.02146,C,true,-1; 229.162932,K,true,-1; 229.162932,n,
 **TMT Options:** TMT-6, TMT-10, TMT-11, TMT-16, TMT-18, iTRAQ-4, iTRAQ-8
 
 **Ratio compression fix:** `tmtintegrator.min_purity=0.7` (up from 0.5)
-
-**Output:** `abundance_protein_MD.txt`, `abundance_peptide_MD.txt`
 
 ---
 
@@ -122,11 +116,6 @@ msfragger.use_topN_peaks=1000
 msfragger.minimum_ratio=0.00
 speclibgen.easypqp.rt-cal=noiRT
 ```
-
-**RT calibration options:**
-- `noiRT` - DIA-only workflows
-- `ciRT` - Fractionated DDA library
-- `iRT` - Non-human organisms
 
 ---
 
@@ -399,7 +388,7 @@ tmtintegrator.channel_num=TMT-16
 # Add TMT to fix-mods
 ```
 
-### SILAC (Heavy R10/K8)
+### SILAC 
 ```bash
 ionquant.use-lfq=false
 ionquant.use-labeling=true
