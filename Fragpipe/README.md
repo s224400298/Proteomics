@@ -20,6 +20,8 @@ This work provides researchers with:
 * `decoys.R script`: Script to generate decoy databases 
 * `proteomics_eda.Rmd`: R Markdown template for exploratory data analysis
 * `differential_analysis.Rmd`: R Markdown template for differential expression analysis
+* `Workflow_file.workflow`: Basic workflow file optimized for label-free quantification.
+* `key_workflowparameter_file.md`: Reference guide for FragPipe workflow parameters covering Label-Free DDA, TMT/iTRAQ, SILAC, phosphoproteomics, DIA, and PTM analysis
   
   
 ## Docker Container Setup
