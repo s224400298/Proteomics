@@ -32,7 +32,7 @@ This work provides researchers with:
 
 ### Available Docker Images
 - **mziemann/fragpipe_mod1**: Initial version with MSFragger
-- **mziemann/fragpipe_mod2**: ✅ **Recommended** - Updated version with Python compatibility fixes
+- **mziemann/fragpipe_mod2**: **Recommended** - Updated version with Python compatibility fixes
 
 ### Pull and Start Docker Container
 
@@ -226,7 +226,7 @@ workingdir01/
 ├── peptide.tsv                     # Peptide identifications
 ├── ion.tsv                         # Precursor ion data
 ├── dia-nn/
-│   ├── report.pg_matrix.tsv       # ⭐ Main protein quantification matrix
+│   ├── report.pg_matrix.tsv       # Main protein quantification matrix
 │   ├── report.tsv                 # Detailed DIA-NN results
 │   └── report.stats.tsv           # Analysis statistics
 ├── ionquant/
@@ -270,9 +270,9 @@ R -e 'rmarkdown::render("proteomics_eda.Rmd")'
 
 **Expected Results from Example Dataset:**
 - 9,387 proteins across 8 samples
-- 7.55% missing data rate (acceptable for proteomics)
-- 97.0% variance explained by PC1 (clear biological separation)
-- >98% within-group correlations (excellent technical reproducibility)
+- 7.55% missing data rate 
+- 97.0% variance explained by PC1 
+- >98% within-group correlations 
 
 ### Differential Expression Analysis
 
@@ -284,7 +284,6 @@ R -e 'rmarkdown::render("differential_analysis.Rmd")'
 
 **Statistical Features:**
 - **Linear Modeling**: limma-based analysis with empirical Bayes moderation
-- **Multiple Testing**: FDR control using Benjamini-Hochberg correction
 - **Effect Size Analysis**: Log fold-change quantification and significance testing
 - **Visualizations**: Volcano plots, heatmaps, and quality control plots
 
@@ -297,7 +296,7 @@ R -e 'rmarkdown::render("differential_analysis.Rmd")'
 ### Pathway Enrichment Analysis
 
 **Functional Analysis Pipeline:**
-- **Database**: Reactome pathway annotations (downloaded automatically)
+- **Database**: Reactome pathway annotations
 - **Method**: mitch package for over-representation analysis
 - **Multiple testing**: FDR correction for pathway significance
 
