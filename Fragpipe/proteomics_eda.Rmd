@@ -221,7 +221,7 @@ The most abundant proteins include **core histones** (H2AZ1, H2BC1, H4C1, H3C1, 
 cor_matrix <- cor(y, use = "complete.obs")
 
 knitr::kable(round(cor_matrix, 3), 
-             caption = ("Table 6: Sample correlation matrix")
+             caption = "Table 6: Sample correlation matrix")
 
 # Calculate group-wise correlations
 chrom_samples <- grepl("Chrom", colnames(y))
