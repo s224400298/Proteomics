@@ -56,7 +56,7 @@ The dataset consists of DIA-NN quantified protein intensities from 8 samples acr
 2. **Quality Assessment**: Missing data analysis and sample completeness evaluation
 3. **Filtering**: Removal of proteins with excessive missing values (≥3 missing values)
 4. **Imputation**: Minimum value imputation for remaining missing data
-5. **Normalization**: Log10 transformation followed by quantile normalization
+5. **Normalization**: Log2 transformation followed by quantile normalization
 6. **Dimensionality Reduction**: Principal Component Analysis using PPCA method
 
 ## Statistical Analysis
@@ -257,11 +257,12 @@ for(i in 1:ncol(z_complete)) {
   }
 }
 
-# Log10 transformation
-z_log10 <- log10(z_complete + 1)
+# Log2 transformation 
+z_log2 <- log2(z_complete)
 
 # Between-array normalization
-z_normalized <- normalizeBetweenArrays(z_log10, method = "quantile")
+z_normalized <- normalizeBetweenArrays(z_log2, method = "quantile")
+
 ```
 
 ```{r normalization_validation}
@@ -280,12 +281,12 @@ sol_idx <- grepl("Sol", colnames(z_normalized))
 par(mfrow = c(2, 2), mar = c(8, 4, 3, 1))
 
 # Raw data
-boxplot(log10(z_complete + 1), las = 2, main = "Raw Data (Log10 scale)", 
+boxplot(log2(z_complete), las = 2, main = "Raw Data (Log2 scale)", 
         cex.axis = 0.6, col = rainbow(ncol(z_complete)))
 
-# Log10 transformed
-boxplot(z_log10, las = 2, main = "Log10 Transformed", 
-        cex.axis = 0.6, col = rainbow(ncol(z_log10)))
+# Log2 transformed
+boxplot(z_log2, las = 2, main = "Log2 Transformed", 
+        cex.axis = 0.6, col = rainbow(ncol(z_log2)))
 
 # Final normalized
 boxplot(z_normalized, las = 2, main = "Quantile Normalized", 
