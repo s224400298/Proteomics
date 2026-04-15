@@ -1,0 +1,214 @@
+---
+title: "PTM"
+author: "Swanitha"
+date: "2026-02-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "/mnt/data/swanitha/PTM_Targeted/")
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(writexl)
+cat("Working directory:", getwd(), "\n")
+cat("PSM files present:", paste(list.files(pattern="psm.tsv"), collapse=", "), "\n")
+setwd("/mnt/data/swanitha/PTM_Targeted/")
+
+
+#1. Load mod summary
+mods <- read.delim("global.modsummary.tsv", sep = "\t")
+
+chrom_cols <- grep("Chrom.*PSMs$", names(mods), value = TRUE)
+sol_cols   <- grep("Sol.*PSMs$",   names(mods), value = TRUE)
+
+mods$Chrom_mean <- rowMeans(mods[, chrom_cols])
+mods$Sol_mean   <- rowMeans(mods[, sol_cols])
+mods$log2FC     <- log2((mods$Chrom_mean + 0.1) / (mods$Sol_mean + 0.1))
+mods$Total      <- rowSums(mods[, c(chrom_cols, sol_cols)])
+
+unknown <- mods %>% filter(grepl("^Unannotated", Modification)) %>%
+           arrange(desc(Total))
+
+known <- mods %>% filter(!grepl("^Unannotated|^None|isotop", Modification,
+                                ignore.case = TRUE))
+
+#2. TF-relevant PTMs
+tf_ptms <- known %>%
+  filter(grepl("Phospho|Acetyl|Methyl|Ubiq|Hex|Glyco|Oxidat|Nitros|Formyl",
+               Modification, ignore.case = TRUE)) %>%
+  select(Modification, Mass.Shift, Chrom_mean, Sol_mean, log2FC, Total) %>%
+  arrange(desc(Total))
+
+print(tf_ptms)
+
+#3. Top unknown mods
+print(head(unknown[, c("Modification","Mass.Shift","Chrom_mean","Sol_mean","log2FC","Total")], 15))
+
+#4. Plot 
+p <- tf_ptms %>%
+  mutate(Mod = substr(Modification, 1, 35),
+         Direction = ifelse(log2FC > 0, "Chromatin", "Soluble")) %>%
+  ggplot(aes(x = reorder(Mod, log2FC), y = log2FC, fill = Direction)) +
+  geom_col() +
+  scale_fill_manual(values = c("Chromatin" = "#e74c3c", "Soluble" = "#3498db")) +
+  coord_flip() +
+  labs(title = "PTM enrichment: Chromatin vs Soluble",
+       x = NULL, y = "log2(Chrom / Sol)") +
+  theme_minimal()
+
+ggsave("tf_ptm_results/chrom_vs_sol.png", p, width = 8, height = 5)
+
+#5. Load proteins, find TFs
+prot <- read.delim("combined_protein.tsv", sep = "\t", row.names = NULL)
+
+tf_keywords <- "TP53|MYC|SP[1-4]|STAT|E2F|GATA|FOX|SOX|CTCF|YY1|JUN|FOS|SMAD|RUNX|KLF|IRF|BRD|EP300|CREBBP|TAF|TBP|NFKB|RELA|MED[0-9]|REST|HDAC|KAT|PCAF|SETD|EZH|SUZ"
+
+tf_prots <- prot %>%
+  filter(grepl(tf_keywords, Entry.Name,  ignore.case = TRUE) |
+         grepl(tf_keywords, Description, ignore.case = TRUE))
+
+cat("TF proteins found:", nrow(tf_prots), "\n")
+
+#6. TF Chrom vs Sol abundance
+tf_counts <- tf_prots %>%
+  select(Entry.Name, Description, contains("Spectral.Count"))
+
+tf_counts$Chrom_mean <- rowMeans(tf_counts[, grep("Chrom.*Spectral", names(tf_counts))])
+tf_counts$Sol_mean   <- rowMeans(tf_counts[, grep("Sol.*Spectral",   names(tf_counts))])
+tf_counts$log2FC     <- log2((tf_counts$Chrom_mean + 0.1) / (tf_counts$Sol_mean + 0.1))
+
+print(tf_counts %>% arrange(desc(log2FC)) %>% select(Entry.Name, Chrom_mean, Sol_mean, log2FC) %>% head(20))
+
+#6.5 Novel TF candidates
+all_prot_counts <- prot %>%
+  select(Entry.Name, Description, contains("Spectral.Count"))
+
+all_prot_counts$Chrom_mean <- rowMeans(all_prot_counts[, grep("Chrom.*Spectral", names(all_prot_counts))])
+all_prot_counts$Sol_mean   <- rowMeans(all_prot_counts[, grep("Sol.*Spectral", names(all_prot_counts))])
+all_prot_counts$log2FC     <- log2((all_prot_counts$Chrom_mean + 0.1) / (all_prot_counts$Sol_mean + 0.1))
+
+novel_tf_candidates <- all_prot_counts %>%
+  filter(
+    !Entry.Name %in% tf_prots$Entry.Name,
+    log2FC > 1.5,
+    Chrom_mean > 2,
+    grepl("DNA-binding|transcription|zinc finger|chromatin", 
+          Description, ignore.case = TRUE)
+  ) %>%
+  arrange(desc(log2FC)) %>%
+  select(Entry.Name, Description, Chrom_mean, Sol_mean, log2FC)
+
+cat("Novel TF candidates found:", nrow(novel_tf_candidates), "\n")
+print(head(novel_tf_candidates, 20))
+
+
+#7. Load PSM files 
+samples <- c("Chrom_01","Chrom_02","Chrom_03","Chrom_04",
+             "Sol_01","Sol_02","Sol_03","Sol_04")
+
+psm_all <- lapply(samples, function(s) {
+  df <- read.delim(paste0(s, "_psm.tsv"), sep = "\t")  # ← removed subfolder
+  df$Sample   <- s
+  df$Fraction <- ifelse(grepl("Chrom", s), "Chrom", "Sol")
+  df
+}) %>% bind_rows()
+
+#8. TF biological modifications (artifacts removed)
+
+artifact_pattern <- "57\\.0214|15\\.9949"
+
+tf_bio_mods <- psm_all %>%
+
+  filter(Is.Decoy == "false",
+
+         Is.Contaminant == "false",
+
+         grepl(tf_keywords, Entry.Name, ignore.case = TRUE),
+
+         Fraction == "Chrom",
+
+         grepl("79\\.9663|Phospho", Observed.Modifications),
+
+         !grepl(artifact_pattern, Assigned.Modifications)) %>%
+
+  select(Entry.Name, Gene, Peptide, Modified.Peptide,
+
+         Protein.Start, Protein.End, 
+
+         Assigned.Modifications, Observed.Modifications,
+
+         Sample) %>%
+
+  arrange(Entry.Name)
+
+print(
+  tf_bio_mods %>%
+    group_by(Entry.Name, Modified.Peptide, Observed.Modifications) %>%
+    summarise(PSM_count = n(), .groups = "drop") %>%
+    arrange(desc(PSM_count))
+)
+tf_bio_mods %>%
+  select(Entry.Name, Peptide, Observed.Modifications, Sample) %>%
+  as.data.frame() %>%
+  print()
+
+# Methylation on TFs in chromatin
+tf_methyl_mods <- psm_all %>%
+  filter(Is.Decoy == "false",
+         Is.Contaminant == "false",
+         grepl(tf_keywords, Entry.Name, ignore.case = TRUE),
+         Fraction == "Chrom",
+         grepl("14\\.0157|Methylation", Observed.Modifications),
+         !grepl(artifact_pattern, Assigned.Modifications)) %>%
+  select(Entry.Name, Gene, Peptide, Modified.Peptide,
+         Protein.Start, Protein.End,
+         Assigned.Modifications, Observed.Modifications, Sample) %>%
+  arrange(Entry.Name)
+
+cat("TF chromatin methylation PSMs:", nrow(tf_methyl_mods), "\n")
+
+# Ubiquitination on TFs in chromatin
+tf_ubiq_mods <- psm_all %>%
+  filter(Is.Decoy == "false",
+         Is.Contaminant == "false",
+         grepl(tf_keywords, Entry.Name, ignore.case = TRUE),
+         Fraction == "Chrom",
+         grepl("114\\.0429|Ubiquit", Observed.Modifications),
+         !grepl(artifact_pattern, Assigned.Modifications)) %>%
+  select(Entry.Name, Gene, Peptide, Modified.Peptide,
+         Protein.Start, Protein.End,
+         Assigned.Modifications, Observed.Modifications, Sample) %>%
+  arrange(Entry.Name)
+
+cat("TF chromatin ubiquitination PSMs:", nrow(tf_ubiq_mods), "\n")
+
+# Compare phospho across both fractions
+psm_all %>%
+  filter(Is.Decoy == "false",
+         Is.Contaminant == "false",
+         grepl(tf_keywords, Entry.Name, ignore.case = TRUE),
+         grepl("79\\.9663|Phospho", Observed.Modifications)) %>%
+  group_by(Entry.Name, Fraction) %>%
+  summarise(PSM_count = n(), .groups = "drop") %>%
+  arrange(Entry.Name, Fraction) %>%
+  print()
+
+
+#9. Save Excel 
+write_xlsx(list(
+  TF_PTMs             = tf_ptms,
+  Unknown_mods        = head(unknown, 50),
+  Known_all           = known,
+  TF_proteins         = tf_prots,
+  TF_Chrom_Sol        = tf_counts,
+  Novel_TF_candidates = novel_tf_candidates,
+  TF_phospho_chrom    = tf_bio_mods,      
+  TF_methyl_chrom     = tf_methyl_mods,   
+  TF_ubiq_chrom       = tf_ubiq_mods,     
+  Full_summary        = mods
+), "tf_ptm_results/TF_PTM_results.xlsx")
+```

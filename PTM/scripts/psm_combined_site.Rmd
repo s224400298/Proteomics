@@ -1,0 +1,243 @@
+---
+title: "PTM_Site_Mapping"
+author: "Swanitha"
+date: "2026-03-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, message=FALSE, warning=FALSE)
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+```
+
+```{r load}
+setwd("/home/swanitha/psm_combined/")
+
+samples <- c("Chrom_01","Chrom_02","Chrom_03","Chrom_04",
+             "Sol_01","Sol_02","Sol_03","Sol_04")
+
+all_psm <- map_dfr(samples, function(s) {
+  read_tsv(paste0(s, "_psm.tsv"), show_col_types=FALSE) %>%
+    mutate(Sample=s, Fraction=ifelse(grepl("Chrom",s),"Chromatin","Soluble"))
+})
+
+tf_genes <- c("EZHIP","FOSL2","KAT7","FOXK2","EZH2","BRD1","BRD2","BRD3",
+              "KAT6A","KAT6B","CTCF","FOSL1","JUNB","RUNX2","GATAD1",
+              "CTDSP1","SP3","SP110","MED12","MED28","STAT6","TP53BP1")
+
+histone_genes <- c("H2BC13","H4C1","H1-1","H1-2","H1-4",
+                   "H2BC11","H2BC12","H3C1","H3C2","H4")
+
+tb <- function(df, cap) {
+  df %>%
+    kable(caption=cap) %>%
+    kable_styling(bootstrap_options=c("striped","hover","condensed"),
+                  full_width=FALSE, font_size=12) %>%
+    row_spec(0, bold=TRUE, background="#222222", color="white")
+}
+```
+
+## EZHIP — Complete Modification Profile
+```{r ezhip}
+ezhip_phospho <- all_psm %>%
+  filter(Gene=="EZHIP", !is.na(`Observed Modifications`),
+         grepl("Phospho|79.96|79.97",`Observed Modifications`),
+         Probability>=0.90) %>%
+  select(Sample, Fraction, Peptide, `Observed Modifications`,
+         `Best Positions`, Probability) %>%
+  arrange(desc(Probability))
+
+ezhip_dimethyl <- all_psm %>%
+  filter(Gene=="EZHIP", !is.na(`Observed Modifications`),
+         grepl("28.03|[Dd]i.?[Mm]ethyl",`Observed Modifications`),
+         Probability>=0.90) %>%
+  select(Sample, Fraction, Peptide, `Observed Modifications`,
+         `Best Positions`, Probability) %>%
+  arrange(desc(Probability))
+
+ezhip_complete <- bind_rows(
+  ezhip_phospho %>% mutate(Modification_Type="Phosphorylation"),
+  ezhip_dimethyl %>% mutate(Modification_Type="Arg Dimethylation")
+) %>%
+  select(Modification_Type, Sample, Fraction,
+         Peptide, `Best Positions`, Probability) %>%
+  arrange(Modification_Type, desc(Probability))
+
+tb(ezhip_complete, "EZHIP — All modifications detected (phosphorylation + arginine dimethylation)")
+```
+## EZHIP — Site-Specific Modification Stoichiometry
+```{r ezhip_stoich}
+# S14 phosphorylation stoichiometry
+
+ezhip_s14_stoich <- all_psm %>%
+  filter(Gene == "EZHIP",
+         `Protein Start` >= 128 & `Protein End` <= 146) %>%
+  group_by(Sample, Fraction) %>%
+  summarise(
+    total      = n(),
+    modified   = sum(!is.na(`Observed Modifications`) &
+                     grepl("Phospho|79.96|79.97",
+                            `Observed Modifications`)),
+    unmodified = total - modified,
+    pct_phospho_S14 = round(modified / total * 100, 1),
+    .groups = "drop"
+  ) %>%
+  arrange(Fraction, Sample)
+
+# ── S10 phosphorylation stoichiometry ─────────────────────────
+ezhip_s10_stoich <- all_psm %>%
+  filter(Gene == "EZHIP",
+         `Protein Start` >= 250 & `Protein End` <= 268) %>%
+  group_by(Sample, Fraction) %>%
+  summarise(
+    total      = n(),
+    modified   = sum(!is.na(`Observed Modifications`) &
+                     grepl("Phospho|79.96|79.97",
+                            `Observed Modifications`)),
+    unmodified = total - modified,
+    pct_phospho_S10 = round(modified / total * 100, 1),
+    .groups = "drop"
+  ) %>%
+  arrange(Fraction, Sample)
+
+# ── R9 dimethylation stoichiometry ────────────────────────────
+ezhip_r9_stoich <- all_psm %>%
+  filter(Gene == "EZHIP",
+         `Protein Start` >= 294 & `Protein End` <= 304) %>%
+  group_by(Sample, Fraction) %>%
+  summarise(
+    total      = n(),
+    modified   = sum(!is.na(`Observed Modifications`) &
+                     grepl("28.03|[Dd]i.?[Mm]ethyl",
+                            `Observed Modifications`)),
+    unmodified = total - modified,
+    pct_dimethyl_R9 = round(modified / total * 100, 1),
+    .groups = "drop"
+  ) %>%
+  arrange(Fraction, Sample)
+
+tb(ezhip_s14_stoich, "EZHIP S14 — Phosphorylation stoichiometry per sample")
+tb(ezhip_s10_stoich, "EZHIP S10 — Phosphorylation stoichiometry per sample")
+tb(ezhip_r9_stoich,  "EZHIP R9 — Arginine dimethylation stoichiometry per sample")
+```
+
+## TF Proteins — Phosphorylation Sites
+```{r phospho}
+tf_phospho_summary <- all_psm %>%
+  filter(Gene %in% tf_genes, !is.na(`Observed Modifications`),
+         grepl("Phospho|79.96|79.97", `Observed Modifications`),
+         Probability >= 0.90) %>%
+  group_by(Gene, `Best Positions`, Fraction) %>%
+  summarise(PSM_count       = n(),
+            Max_Probability = round(max(Probability), 3),
+            Replicates      = paste(sort(unique(Sample)), collapse=", "),
+            .groups = "drop") %>%
+  arrange(Gene, desc(PSM_count)) %>%
+  mutate(n_positions = str_count(`Best Positions`, ";") + 1) %>%
+  filter(n_positions <= 3 | is.na(`Best Positions`)) %>%
+  select(-n_positions)
+
+tb(tf_phospho_summary, "TF proteins — phosphorylation site summary (prob ≥ 0.90)")
+```
+
+## TF Proteins — Dimethylation Sites
+```{r dimethyl}
+tf_dimethyl_summary <- all_psm %>%
+  filter(Gene %in% tf_genes, !is.na(`Observed Modifications`),
+         grepl("28.03|[Dd]i.?[Mm]ethyl",`Observed Modifications`),
+         Probability>=0.90) %>%
+  group_by(Gene, `Best Positions`, Fraction) %>%
+  summarise(PSM_count=n(),
+            Max_Probability=round(max(Probability),3),
+            Replicates=paste(sort(unique(Sample)),collapse=", "),
+            .groups="drop") %>%
+  arrange(Gene, desc(PSM_count))
+
+tb(tf_dimethyl_summary, "TF proteins — dimethylation site summary (prob ≥ 0.90)")
+```
+
+## TF Proteins — N-Terminal Acetylation
+```{r nterm}
+tf_nterm_summary <- all_psm %>%
+  filter(Gene %in% tf_genes, !is.na(`Assigned Modifications`),
+         grepl("N-term",`Assigned Modifications`),
+         Probability>=0.90) %>%
+  group_by(Gene, Fraction) %>%
+  summarise(PSM_count=n(),
+            Max_Probability=round(max(Probability),3),
+            Replicates=paste(sort(unique(Sample)),collapse=", "),
+            .groups="drop") %>%
+  arrange(Gene, Fraction)
+
+tb(tf_nterm_summary, "TF proteins — N-terminal acetylation (housekeeping, co-translational)")
+```
+
+## Histone PTMs — Chromatin Fraction
+```{r histones}
+histone_mods <- all_psm %>%
+  filter(grepl(paste(histone_genes,collapse="|"),Gene),
+         !is.na(`Observed Modifications`),
+         Probability>=0.90,
+         !grepl("57.0214",`Assigned Modifications`)) %>%
+  group_by(Gene, `Observed Modifications`, Fraction) %>%
+  summarise(PSM_count=n(), .groups="drop") %>%
+  arrange(desc(PSM_count)) %>%
+  head(30)
+
+tb(histone_mods, "Histone modifications — top 30 by PSM count")
+```
+
+## Global Modification Landscape — Chromatin Enriched
+```{r global}
+profile <- read_tsv("/home/swanitha/combined_experiment_profile.tsv",
+                    show_col_types = FALSE)
+
+chrom_enriched_mods <- profile %>%
+  select(
+    peak_apex      = `peak_apex...1`,
+    PSMs           = `PSMs...4`,
+    mapped_mass_1  = `mapped_mass_1...6`,
+    mapped_mass_2  = `mapped_mass_2...7`,
+    localized_PSMs = `localized_PSMs...8`,
+    AA1            = `AA1...10`,
+    AA1_enrichment_score = `AA1_enrichment_score...11`,
+    Chrom_01_PSMs, Chrom_02_PSMs, Chrom_03_PSMs, Chrom_04_PSMs,
+    Sol_01_PSMs,   Sol_02_PSMs,   Sol_03_PSMs,   Sol_04_PSMs
+  ) %>%
+  mutate(
+    mean_chrom       = (Chrom_01_PSMs + Chrom_02_PSMs +
+                        Chrom_03_PSMs + Chrom_04_PSMs) / 4,
+    mean_sol         = (Sol_01_PSMs   + Sol_02_PSMs   +
+                        Sol_03_PSMs   + Sol_04_PSMs)   / 4,
+    localisation_pct = round(localized_PSMs / PSMs * 100, 1)
+  ) %>%
+  filter(PSMs >= 100,
+         mean_chrom > mean_sol,
+         !is.na(mapped_mass_1),
+         !grepl("isotopic|Isotopic", mapped_mass_1)) %>%
+  select(peak_apex, PSMs, mapped_mass_1, mapped_mass_2,
+         localized_PSMs, localisation_pct,
+         mean_chrom, mean_sol, AA1, AA1_enrichment_score) %>%
+  arrange(desc(mean_chrom)) %>%
+  head(30) %>%
+  setNames(c("Mass Shift", "Total PSMs", "Annotation", "Alt Annot",
+             "Localised", "Localised %", "Mean Chrom", "Mean Sol",
+             "Top Residue", "Enrichment"))
+
+tb(chrom_enriched_mods,
+   "Global chromatin-enriched modifications — top 30 (100+ PSMs, biological annotations only)")
+```
+
+```{r save, include=FALSE}
+write_tsv(ezhip_complete,      "/home/swanitha/ezhip_complete_modifications.tsv")
+write_tsv(ezhip_s14_stoich, "/home/swanitha/ezhip_s14_stoichiometry.tsv")
+write_tsv(ezhip_s10_stoich, "/home/swanitha/ezhip_s10_stoichiometry.tsv")
+write_tsv(ezhip_r9_stoich,  "/home/swanitha/ezhip_r9_stoichiometry.tsv")
+write_tsv(tf_phospho_summary,  "/home/swanitha/tf_phospho_summary.tsv")
+write_tsv(tf_dimethyl_summary, "/home/swanitha/tf_dimethyl_summary.tsv")
+write_tsv(tf_nterm_summary,    "/home/swanitha/tf_nterm_acetyl_summary.tsv")
+write_tsv(histone_mods,        "/home/swanitha/histone_modifications.tsv")
+write_tsv(chrom_enriched_mods, "/home/swanitha/chromatin_enriched_mods.tsv")
+```

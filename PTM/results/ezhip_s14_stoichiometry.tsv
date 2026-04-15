@@ -1,0 +1,7 @@
+Sample	Fraction	total	modified	unmodified	pct_phospho_S14
+Chrom_01	Chromatin	1	1	0	100
+Chrom_03	Chromatin	1	1	0	100
+Sol_01	Soluble	1	1	0	100
+Sol_02	Soluble	2	1	1	50
+Sol_03	Soluble	1	0	1	0
+Sol_04	Soluble	1	0	1	0

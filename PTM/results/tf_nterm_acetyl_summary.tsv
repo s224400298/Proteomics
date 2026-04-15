@@ -1,0 +1,12 @@
+Gene	Fraction	PSM_count	Max_Probability	Replicates
+BRD2	Chromatin	10	1	Chrom_01, Chrom_02, Chrom_03, Chrom_04
+BRD2	Soluble	1	0.924	Sol_03
+BRD3	Chromatin	13	1	Chrom_01, Chrom_02, Chrom_03, Chrom_04
+CTDSP1	Chromatin	7	1	Chrom_01, Chrom_02, Chrom_03, Chrom_04
+EZHIP	Soluble	4	1	Sol_01, Sol_02, Sol_03, Sol_04
+FOXK2	Chromatin	4	0.997	Chrom_01, Chrom_03
+FOXK2	Soluble	7	1	Sol_01, Sol_02, Sol_03, Sol_04
+MED12	Chromatin	1	0.991	Chrom_04
+MED12	Soluble	11	1	Sol_01, Sol_02, Sol_03, Sol_04
+MED28	Soluble	9	1	Sol_01, Sol_02, Sol_03, Sol_04
+STAT6	Soluble	11	1	Sol_01, Sol_02, Sol_03, Sol_04

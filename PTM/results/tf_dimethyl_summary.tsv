@@ -1,0 +1,11 @@
+Gene	Best Positions	Fraction	PSM_count	Max_Probability	Replicates
+EZHIP	P8;R9	Chromatin	2	1	Chrom_02, Chrom_03
+EZHIP	A7;P8;R9	Chromatin	1	0.974	Chrom_04
+EZHIP	P8;R9;G10	Chromatin	1	0.927	Chrom_01
+EZHIP	S6;A7;P8;R9	Soluble	1	0.97	Sol_03
+FOSL1	R5;A6;L7	Chromatin	1	0.989	Chrom_03
+MED12	R4	Soluble	3	1	Sol_01, Sol_03, Sol_04
+MED12	Q3;Q4;R5;P6;S7;G8;Y9;V10;H11	Soluble	2	1	Sol_01, Sol_04
+MED12	R4;P5;T6;Y7	Soluble	1	1	Sol_02
+MED12	R5;Q6;Q7	Chromatin	1	0.95	Chrom_03
+MED12	Y4	Soluble	1	1	Sol_04

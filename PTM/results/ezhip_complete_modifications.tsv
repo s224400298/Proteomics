@@ -1,0 +1,22 @@
+Modification_Type	Sample	Fraction	Peptide	Best Positions	Probability
+Arg Dimethylation	Chrom_02	Chromatin	DSAPVSAPRGR	P8;R9	0.9997
+Arg Dimethylation	Chrom_03	Chromatin	DSAPVSAPRGR	P8;R9	0.9995
+Arg Dimethylation	Chrom_04	Chromatin	DSAPVSAPRGR	A7;P8;R9	0.974
+Arg Dimethylation	Sol_03	Soluble	DSAPVSAPRGR	S6;A7;P8;R9	0.97
+Arg Dimethylation	Chrom_01	Chromatin	DSAPVSAPRGR	P8;R9;G10	0.9267
+Phosphorylation	Chrom_03	Chromatin	ATGHADEHLAQTKSPGNSR	S14	1
+Phosphorylation	Sol_01	Soluble	ATHLDPARLSPESAPGPAR	S10	1
+Phosphorylation	Sol_01	Soluble	ATHLDPARLSPESAPGPAR	S10	1
+Phosphorylation	Sol_02	Soluble	ATHLDPARLSPESAPGPAR	P6;A7;R8;L9;S10	1
+Phosphorylation	Sol_04	Soluble	ATHLDPARLSPESAPGPAR	S10	1
+Phosphorylation	Sol_01	Soluble	ATHLDPARLSPESAPGPAR	S10	0.9999
+Phosphorylation	Sol_02	Soluble	ATGHADEHLAQTKSPGNSR	S14	0.9993
+Phosphorylation	Sol_03	Soluble	ATHLDPARLSPESAPGPAR	P6;A7;R8;L9;S10	0.9972
+Phosphorylation	Sol_04	Soluble	ATHLDPARLSPESAPGPAR	P6;A7;R8;L9;S10	0.9929
+Phosphorylation	Sol_04	Soluble	ATHLDPARLSPESAPGPAR	S10	0.991
+Phosphorylation	Sol_02	Soluble	ATHLDPARLSPESAPGPAR	R8;L9;S10	0.9899
+Phosphorylation	Chrom_01	Chromatin	ATGHADEHLAQTKSPGNSR	S14	0.9844
+Phosphorylation	Chrom_02	Chromatin	ATHLDPARLSPESAPGPAR	P6;A7;R8;L9;S10	0.9736
+Phosphorylation	Sol_01	Soluble	ATGHADEHLAQTKSPGNSR	S14	0.9556
+Phosphorylation	Chrom_04	Chromatin	ATHLDPARLSPESAPGPAR	P6;A7;R8;L9;S10	0.9416
+Phosphorylation	Chrom_03	Chromatin	ATHLDPARLSPESAPGPAR	P6;A7;R8;L9;S10	0.9115
